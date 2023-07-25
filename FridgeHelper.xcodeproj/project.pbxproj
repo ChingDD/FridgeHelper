@@ -1,0 +1,439 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		FC12762A2A6294E80045422D /* ExpiredTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1276292A6294E80045422D /* ExpiredTableViewController.swift */; };
+		FC12762C2A6295D20045422D /* ExpiredTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC12762B2A6295D20045422D /* ExpiredTableViewCell.swift */; };
+		FC1BCDE92A630C43009D181F /* ExpiredViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC1BCDE82A630C43009D181F /* ExpiredViewController.swift */; };
+		FC3D23282A56A283001397CE /* AlertVIew.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC3D23272A56A283001397CE /* AlertVIew.swift */; };
+		FC3D232A2A56BA9F001397CE /* TagController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC3D23292A56BA9F001397CE /* TagController.swift */; };
+		FC4B84F32A5173CD004E926B /* MainTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC4B84F22A5173CD004E926B /* MainTableViewController.swift */; };
+		FC4B84F52A5173EF004E926B /* ItemTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC4B84F42A5173EF004E926B /* ItemTableViewCell.swift */; };
+		FC4B84F72A517529004E926B /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC4B84F62A517529004E926B /* Item.swift */; };
+		FC4B84F92A517C25004E926B /* EditViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC4B84F82A517C25004E926B /* EditViewController.swift */; };
+		FC4B84FB2A51A850004E926B /* TagTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC4B84FA2A51A850004E926B /* TagTableViewController.swift */; };
+		FC57613F2A57F94400DEBC4F /* DateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC57613E2A57F94400DEBC4F /* DateController.swift */; };
+		FC68431D2A513B8E00BD3BBE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC68431C2A513B8E00BD3BBE /* AppDelegate.swift */; };
+		FC68431F2A513B8E00BD3BBE /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC68431E2A513B8E00BD3BBE /* SceneDelegate.swift */; };
+		FC6843242A513B8E00BD3BBE /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = FC6843222A513B8E00BD3BBE /* Main.storyboard */; };
+		FC6843262A513B9000BD3BBE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FC6843252A513B9000BD3BBE /* Assets.xcassets */; };
+		FC6843292A513B9000BD3BBE /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = FC6843272A513B9000BD3BBE /* LaunchScreen.storyboard */; };
+		FC88FAAD2A611CAC0000E420 /* SortMethod.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC88FAAC2A611CAC0000E420 /* SortMethod.swift */; };
+		FCAC1DB72A66856400997A41 /* LunchingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCAC1DB62A66856400997A41 /* LunchingViewController.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		FC1276292A6294E80045422D /* ExpiredTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpiredTableViewController.swift; sourceTree = "<group>"; };
+		FC12762B2A6295D20045422D /* ExpiredTableViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpiredTableViewCell.swift; sourceTree = "<group>"; };
+		FC1BCDE82A630C43009D181F /* ExpiredViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpiredViewController.swift; sourceTree = "<group>"; };
+		FC3D23272A56A283001397CE /* AlertVIew.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertVIew.swift; sourceTree = "<group>"; };
+		FC3D23292A56BA9F001397CE /* TagController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagController.swift; sourceTree = "<group>"; };
+		FC4B84F22A5173CD004E926B /* MainTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTableViewController.swift; sourceTree = "<group>"; };
+		FC4B84F42A5173EF004E926B /* ItemTableViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemTableViewCell.swift; sourceTree = "<group>"; };
+		FC4B84F62A517529004E926B /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
+		FC4B84F82A517C25004E926B /* EditViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditViewController.swift; sourceTree = "<group>"; };
+		FC4B84FA2A51A850004E926B /* TagTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagTableViewController.swift; sourceTree = "<group>"; };
+		FC57613E2A57F94400DEBC4F /* DateController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateController.swift; sourceTree = "<group>"; };
+		FC6843192A513B8E00BD3BBE /* FridgeHelper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FridgeHelper.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC68431C2A513B8E00BD3BBE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		FC68431E2A513B8E00BD3BBE /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		FC6843232A513B8E00BD3BBE /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
+		FC6843252A513B9000BD3BBE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		FC6843282A513B9000BD3BBE /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		FC68432A2A513B9000BD3BBE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		FC88FAAC2A611CAC0000E420 /* SortMethod.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SortMethod.swift; sourceTree = "<group>"; };
+		FCAC1DB62A66856400997A41 /* LunchingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunchingViewController.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FC6843162A513B8E00BD3BBE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		FC6480862A5EE35C00D59DC8 /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				FC4B84F62A517529004E926B /* Item.swift */,
+				FC88FAAC2A611CAC0000E420 /* SortMethod.swift */,
+			);
+			path = Model;
+			sourceTree = "<group>";
+		};
+		FC6480872A5EE39700D59DC8 /* View */ = {
+			isa = PBXGroup;
+			children = (
+				FC3D23272A56A283001397CE /* AlertVIew.swift */,
+				FC4B84F42A5173EF004E926B /* ItemTableViewCell.swift */,
+				FC12762B2A6295D20045422D /* ExpiredTableViewCell.swift */,
+			);
+			path = View;
+			sourceTree = "<group>";
+		};
+		FC6480882A5EE3B400D59DC8 /* Controller */ = {
+			isa = PBXGroup;
+			children = (
+				FC1276292A6294E80045422D /* ExpiredTableViewController.swift */,
+				FC68431C2A513B8E00BD3BBE /* AppDelegate.swift */,
+				FC68431E2A513B8E00BD3BBE /* SceneDelegate.swift */,
+				FC4B84F22A5173CD004E926B /* MainTableViewController.swift */,
+				FC4B84FA2A51A850004E926B /* TagTableViewController.swift */,
+				FC4B84F82A517C25004E926B /* EditViewController.swift */,
+				FC1BCDE82A630C43009D181F /* ExpiredViewController.swift */,
+				FCAC1DB62A66856400997A41 /* LunchingViewController.swift */,
+				FC57613E2A57F94400DEBC4F /* DateController.swift */,
+				FC3D23292A56BA9F001397CE /* TagController.swift */,
+			);
+			path = Controller;
+			sourceTree = "<group>";
+		};
+		FC6843102A513B8E00BD3BBE = {
+			isa = PBXGroup;
+			children = (
+				FC68431B2A513B8E00BD3BBE /* FridgeHelper */,
+				FC68431A2A513B8E00BD3BBE /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FC68431A2A513B8E00BD3BBE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FC6843192A513B8E00BD3BBE /* FridgeHelper.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FC68431B2A513B8E00BD3BBE /* FridgeHelper */ = {
+			isa = PBXGroup;
+			children = (
+				FC6480862A5EE35C00D59DC8 /* Model */,
+				FC6480872A5EE39700D59DC8 /* View */,
+				FC6480882A5EE3B400D59DC8 /* Controller */,
+				FC6843252A513B9000BD3BBE /* Assets.xcassets */,
+				FC6843222A513B8E00BD3BBE /* Main.storyboard */,
+				FC6843272A513B9000BD3BBE /* LaunchScreen.storyboard */,
+				FC68432A2A513B9000BD3BBE /* Info.plist */,
+			);
+			path = FridgeHelper;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		FC6843182A513B8E00BD3BBE /* FridgeHelper */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FC68432D2A513B9000BD3BBE /* Build configuration list for PBXNativeTarget "FridgeHelper" */;
+			buildPhases = (
+				FC6843152A513B8E00BD3BBE /* Sources */,
+				FC6843162A513B8E00BD3BBE /* Frameworks */,
+				FC6843172A513B8E00BD3BBE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FridgeHelper;
+			productName = FridgeHelper;
+			productReference = FC6843192A513B8E00BD3BBE /* FridgeHelper.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		FC6843112A513B8E00BD3BBE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1430;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					FC6843182A513B8E00BD3BBE = {
+						CreatedOnToolsVersion = 14.3;
+					};
+				};
+			};
+			buildConfigurationList = FC6843142A513B8E00BD3BBE /* Build configuration list for PBXProject "FridgeHelper" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = FC6843102A513B8E00BD3BBE;
+			productRefGroup = FC68431A2A513B8E00BD3BBE /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				FC6843182A513B8E00BD3BBE /* FridgeHelper */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		FC6843172A513B8E00BD3BBE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FC6843292A513B9000BD3BBE /* LaunchScreen.storyboard in Resources */,
+				FC6843262A513B9000BD3BBE /* Assets.xcassets in Resources */,
+				FC6843242A513B8E00BD3BBE /* Main.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		FC6843152A513B8E00BD3BBE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FC1BCDE92A630C43009D181F /* ExpiredViewController.swift in Sources */,
+				FC4B84F32A5173CD004E926B /* MainTableViewController.swift in Sources */,
+				FC4B84FB2A51A850004E926B /* TagTableViewController.swift in Sources */,
+				FC4B84F52A5173EF004E926B /* ItemTableViewCell.swift in Sources */,
+				FC68431D2A513B8E00BD3BBE /* AppDelegate.swift in Sources */,
+				FC12762C2A6295D20045422D /* ExpiredTableViewCell.swift in Sources */,
+				FC12762A2A6294E80045422D /* ExpiredTableViewController.swift in Sources */,
+				FC57613F2A57F94400DEBC4F /* DateController.swift in Sources */,
+				FC3D23282A56A283001397CE /* AlertVIew.swift in Sources */,
+				FC3D232A2A56BA9F001397CE /* TagController.swift in Sources */,
+				FC4B84F72A517529004E926B /* Item.swift in Sources */,
+				FC68431F2A513B8E00BD3BBE /* SceneDelegate.swift in Sources */,
+				FC88FAAD2A611CAC0000E420 /* SortMethod.swift in Sources */,
+				FCAC1DB72A66856400997A41 /* LunchingViewController.swift in Sources */,
+				FC4B84F92A517C25004E926B /* EditViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		FC6843222A513B8E00BD3BBE /* Main.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				FC6843232A513B8E00BD3BBE /* Base */,
+			);
+			name = Main.storyboard;
+			sourceTree = "<group>";
+		};
+		FC6843272A513B9000BD3BBE /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				FC6843282A513B9000BD3BBE /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		FC68432B2A513B9000BD3BBE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		FC68432C2A513B9000BD3BBE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		FC68432E2A513B9000BD3BBE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RX5VY4RSZS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FridgeHelper/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = FridgeHelper.codizzy;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		FC68432F2A513B9000BD3BBE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RX5VY4RSZS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FridgeHelper/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = FridgeHelper.codizzy;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		FC6843142A513B8E00BD3BBE /* Build configuration list for PBXProject "FridgeHelper" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FC68432B2A513B9000BD3BBE /* Debug */,
+				FC68432C2A513B9000BD3BBE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FC68432D2A513B9000BD3BBE /* Build configuration list for PBXNativeTarget "FridgeHelper" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FC68432E2A513B9000BD3BBE /* Debug */,
+				FC68432F2A513B9000BD3BBE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = FC6843112A513B8E00BD3BBE /* Project object */;
+}
