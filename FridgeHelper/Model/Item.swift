@@ -18,28 +18,37 @@ struct Item:Codable{
     var photo:Data?
     
     //存照片
+
     static func saveImage(_ item:Self, image:UIImage){
-        
-        let imageData = image.pngData()
-        let url = URL.documentsDirectory.appending(path: item.name)
-        do{
-            try imageData!.write(to: url)
+        //用JPG存檔，他的Orientation才不會消失
+        if let imageData = image.jpegData(compressionQuality: 1){
             
-            print("寫入成功")
-        }catch{
-            print("照片寫入失敗")
+            let direction = image.imageOrientation
+            print("存照片前的方向:\(direction)")
+            let url = URL.documentsDirectory.appending(path: item.name)
+            do{
+                try imageData.write(to: url)
+                
+                print("寫入成功")
+            }catch{
+                print("照片寫入失敗")
+            }
+            
         }
 
+        
     }
     
     //讀取照片
+
     static func loadImage(_ item:Self)->UIImage?{
         
         let url = URL.documentsDirectory.appending(path: item.name)
         guard let image = UIImage(contentsOfFile: url.path().removingPercentEncoding ?? "") else{ return nil }
         return image
-        
+
     }
+    
     
     //移除儲存的圖片
     static func removeImage( _ item:Self){
@@ -94,3 +103,5 @@ enum storeCondition:String{
         }
     }
 }
+
+

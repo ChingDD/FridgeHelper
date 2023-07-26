@@ -19,6 +19,15 @@ class ExpiredTableViewController: UITableViewController {
         title = "即將過期的食品！"
     }
 
+    
+    @IBAction func backToMain(_ sender: Any) {
+        dismiss(animated: true)
+    }
+    
+    
+    
+    
+    
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         print("viewWillAppear")
@@ -50,7 +59,7 @@ class ExpiredTableViewController: UITableViewController {
         view.frame.size.width = deviceSize.size.width*0.8
         view.frame.size.height = deviceSize.size.height*2/3
         let midXOffSet = deviceSize.midX-view.frame.midX
-        let midYOffSet = deviceSize.midY-view.frame.midY-50
+        let midYOffSet = deviceSize.midY-view.frame.midY
         view.frame.origin.x = view.frame.origin.x + midXOffSet
         view.frame.origin.y = view.frame.origin.y + midYOffSet
         view.layer.cornerRadius = 20

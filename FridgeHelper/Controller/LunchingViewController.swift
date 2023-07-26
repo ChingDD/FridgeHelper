@@ -61,7 +61,7 @@ class LunchingViewController: UIViewController {
                 let rotationAnimate = CABasicAnimation(keyPath: "transform.rotation")
                 rotationAnimate.fromValue = 0
                 rotationAnimate.toValue = Double.pi*2
-                rotationAnimate.duration = 1.0
+                rotationAnimate.duration = 0.8
                 imageView.layer.add(rotationAnimate, forKey: nil)
                 print("第一段動畫做完了")
                 //imageView.transform的方法無法轉360度
@@ -69,7 +69,7 @@ class LunchingViewController: UIViewController {
             } completion: { _ in
                 //元件的更動以動畫表示
                 //因為馬上就會跳到第二段動畫，所以第二段動畫要先delay，等第一段的圖層動畫跑完才會剛好接上第二段的動畫
-                UIViewPropertyAnimator.runningPropertyAnimator(withDuration: 1.0, delay: 1.8, options: .curveEaseInOut) {
+                UIViewPropertyAnimator.runningPropertyAnimator(withDuration: 1.0, delay: 0.8, options: .curveEaseInOut) {
                     label.alpha = 1
                     print("第二段動畫做完了")
                 } completion: { _ in

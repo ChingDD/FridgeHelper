@@ -664,6 +664,7 @@ extension MainTableViewController:UISearchBarDelegate{
     
 }
 
+
 /*
  bug:
  ✅ 1.其他溫度的品項增加數量，不會改到對應的物品 -> 本來只有改到savedItems，但也要同時更改showedItems的數量

@@ -62,6 +62,7 @@ class EditViewController: UIViewController {
         }
         itemImageView.layer.borderWidth = 5
         itemImageView.layer.borderColor = UIColor(named: "Color")?.cgColor
+        itemImageView.contentMode = .scaleAspectFill
     }
     
     //MARK: - 自定義function
@@ -239,8 +240,10 @@ class EditViewController: UIViewController {
                 let alertAction = UIAlertAction(title: "確定", style: .default)
                 alertController.addAction(alertAction)
                 self.present(alertController, animated: true)
+                print("沒有相機")
                 return
             }
+            
             let controller = UIImagePickerController()
             controller.delegate = self
             controller.sourceType = .camera
