@@ -11,12 +11,20 @@ class ExpiredTableViewController: UITableViewController {
 
     var savedItems:[Item]?
     var expiredItems:[Item]?
-   
-    
+    var desiredWidth:CGFloat!
+    var desiredHeight:CGFloat!
+    var offSetX:CGFloat!
+    var offSetY:CGFloat!
+    var isViewDissapear:Bool = true
+
     override func viewDidLoad() {
         super.viewDidLoad()
         print("viewDidLoad")
         title = "即將過期的食品！"
+       
+
+        
+        
     }
 
     
@@ -31,14 +39,29 @@ class ExpiredTableViewController: UITableViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         print("viewWillAppear")
-
         
+        //判斷畫面有無消失，沒消失的話就不會再更新畫面的呈現
+        if isViewDissapear == true{
+            desiredWidth = view.frame.size.width*0.8
+            desiredHeight = view.frame.size.height*0.75
+            offSetX = view.frame.size.width - view.frame.size.width*0.8
+            offSetY = view.frame.size.height - view.frame.size.height*0.75
+            
+            view.frame.size.width = desiredWidth
+            view.frame.size.height = desiredHeight
+            view.frame.origin.x = offSetX/2
+            view.frame.origin.y = offSetY/2
+            view.layer.cornerRadius = 20
+            view.clipsToBounds = true
+            isViewDissapear = false
+        }
+       
+        //更新顯示的物品
         savedItems = Item.fetchItems()
         expiredItems = savedItems?.filter({
             //259200為三天前的秒數，表示過期日小於三天會提醒
           return $0.expiryDate.timeIntervalSinceNow <= 259200
         })
-        
         //如果過濾完結果是空字串，表示沒篩到，就設回nil
         if let expiredItems{
             if expiredItems.isEmpty{
@@ -46,25 +69,14 @@ class ExpiredTableViewController: UITableViewController {
             }
         }
        
+        
         tableView.reloadData()
     }
     
     
-    override func viewDidLayoutSubviews() {
-        print("viewDidLayoutSubviews")
-        
-        let deviceSize = UIScreen.main.bounds
-        print(deviceSize)
-
-        view.frame.size.width = deviceSize.size.width*0.8
-        view.frame.size.height = deviceSize.size.height*2/3
-        let midXOffSet = deviceSize.midX-view.frame.midX
-        let midYOffSet = deviceSize.midY-view.frame.midY
-        view.frame.origin.x = view.frame.origin.x + midXOffSet
-        view.frame.origin.y = view.frame.origin.y + midYOffSet
-        view.layer.cornerRadius = 20
-        view.clipsToBounds = true
-        
+    override func viewDidDisappear(_ animated: Bool) {
+        //當畫面確定消失，就更改布林判斷值
+        isViewDissapear = true
     }
     
     // MARK: - Table view data source
