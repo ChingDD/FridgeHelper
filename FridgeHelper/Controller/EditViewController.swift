@@ -233,6 +233,8 @@ class EditViewController: UIViewController {
     
     @IBAction func choosePhoto(_ sender: UIButton) {
         let alert = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        //ipad要設定彈出的點在哪，這邊是綁在按鈕旁邊
+        alert.popoverPresentationController?.sourceView = sender
         let takePhotoAction = UIAlertAction(title: "拍照", style: .default){_ in
             //如果沒有前置鏡頭，就return
             guard UIImagePickerController.isCameraDeviceAvailable(.rear) else {
@@ -259,7 +261,7 @@ class EditViewController: UIViewController {
             
         }
         
-        let cancelAction = UIAlertAction(title: "取消", style: .default){_ in
+        let cancelAction = UIAlertAction(title: "取消", style: .cancel){_ in
             self.dismiss(animated: true)
         }
         

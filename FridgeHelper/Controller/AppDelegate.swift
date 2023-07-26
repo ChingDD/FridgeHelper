@@ -16,7 +16,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         //sleep(3)
         print("家目錄：\(NSHomeDirectory())")
         let navigationBarAppearance = UINavigationBarAppearance()
-        //navigationBarAppearance.configureWithDefaultBackground()
+        navigationBarAppearance.configureWithDefaultBackground()
         navigationBarAppearance.shadowColor = .clear
         let font = UIFont.systemFont(ofSize: 20, weight: .semibold)
         navigationBarAppearance.titleTextAttributes = [
