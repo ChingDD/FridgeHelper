@@ -80,8 +80,10 @@ class MainTableViewController: UITableViewController {
         let url = URL.documentsDirectory.appending(path: "items")
         print("url:\(url)")
         if let itemData = try? Data(contentsOf: url){
-            showedItems = try! JSONDecoder().decode([Item].self, from: itemData)
+            
             savedItems = try! JSONDecoder().decode([Item].self, from: itemData)
+            showedItems = savedItems
+            
         }else{
             print("目前無items的儲存檔案")
         }
@@ -231,23 +233,23 @@ class MainTableViewController: UITableViewController {
             tableView.reloadData()
         }
         let sortBtn1 =  UIAction(title: SortMethod.時間排序遠到近.rawValue) {[self]_ in
-            showedItems?.sort(by: { $0.expiryDate < $1.expiryDate })
             currentSelector = SortMethod.時間排序遠到近
+            selectShowedItem()
             tableView.reloadData()
         }
         let sortBtn2 =  UIAction(title: SortMethod.時間排序近到遠.rawValue) {[self]_ in
-            showedItems?.sort(by: { $0.expiryDate > $1.expiryDate })
             currentSelector = SortMethod.時間排序近到遠
+            selectShowedItem()
             tableView.reloadData()
         }
         let sortBtn3 =  UIAction(title: SortMethod.剩餘數量多到少.rawValue) {[self]_ in
-            showedItems?.sort(by: { $0.number > $1.number })
             currentSelector = SortMethod.剩餘數量多到少
+            selectShowedItem()
             tableView.reloadData()
         }
         let sortBtn4 =  UIAction(title: SortMethod.剩餘數量少到多.rawValue) {[self]_ in
-            showedItems?.sort(by: { $0.number < $1.number })
             currentSelector = SortMethod.剩餘數量少到多
+            selectShowedItem()
             tableView.reloadData()
         }
         let menu = UIMenu(title: "分類", options: .singleSelection, children: [cancelBtn,sortBtn1,sortBtn2,sortBtn3,sortBtn4])
@@ -264,7 +266,6 @@ class MainTableViewController: UITableViewController {
             guard let index = tableView.indexPathForSelectedRow?.section, let controller = segue.destination as? EditViewController else {return}
             print("跑到prepare裡的indexPathForSelectedRow")
             controller.item = showedItems?[index]
-            controller.isCellSelected = true
         }
     }
     
@@ -307,12 +308,29 @@ class MainTableViewController: UITableViewController {
             
             //利用index找到showedItems的裡的物品，在尚未更新showedItems前先把該物品讀出來，然後藉由name比對savedItems來得到該物品在savedItems裡的indexPath
             //得到後移除savedItems裡的該物品，再把剛剛傳過來的新物品插入
+            
+            
+            if let savedItems{
+
+                if let chosenItemIndex = savedItems.firstIndex(where:{ $0.name == showedItems?[index].name && $0.expiryDate == showedItems?[index].expiryDate }){
+
+                    self.savedItems?.remove(at: chosenItemIndex)
+                    self.savedItems?.insert(controller.item!, at: chosenItemIndex)
+
+                }
+
+            }
+            
+            /*
+             要是物品有相同名字，這段程式碼會篩不到正確的物品
             if let savedItems, let chosenItemIndex = savedItems.firstIndex(where:{ $0.name == showedItems?[index].name }){
-                
+
                 self.savedItems?.remove(at: chosenItemIndex)
                 self.savedItems?.insert(controller.item!, at: chosenItemIndex)
-                
+
             }
+             */
+            
             
             //更改完savedItems後再更改showedItems的資訊
             //showedItems?[index] = controller.item! -> bug：要是更換儲存條件，還是會出現仍在原儲存條件的table上
@@ -335,10 +353,9 @@ class MainTableViewController: UITableViewController {
    
     //測試OK
     
+    //MARK: - 確認在幹嘛
     @IBAction func chooseStoreCondition(_ sender: UISegmentedControl) {
         //當savedItems為nil，則其他的選項都會顯示為登入物品；若savedItems不為空，但其他選項剛好沒有，則其他的選項會呈現空白
-        let sortBtnAction = sortItemBtn.menu?.children.first as! UIAction
-        sortBtnAction.state = .on
         selectShowedItem()
         tableView.reloadData()
     }
@@ -434,16 +451,19 @@ class MainTableViewController: UITableViewController {
                 itemcell.memoTitleLabel.isHidden = true
             }
             
-            
-            //MARK: - 照片can呈現中文檔名
             //沒有照片的cell，image裡面存nil，因爲有存東西，所以不會被reuse的cell圖片蓋掉
-            itemcell.itemImageView.image = Item.loadImage(showedItem)
+            if let imageData = showedItem.image{
+                itemcell.itemImageView.image = UIImage(data: imageData)
+            }else{
+                itemcell.itemImageView.image = nil
+            }
             itemcell.itemImageView.contentMode = .scaleAspectFill
             
             return itemcell
             
         }else{
             let noItemcell = tableView.dequeueReusableCell(withIdentifier: "NoItemTableViewCell", for: indexPath)
+            
             return noItemcell
         }
     }
@@ -489,26 +509,27 @@ class MainTableViewController: UITableViewController {
             action, view, complete
             in
 
-            //刪除資料
+            //刪除資料後，把刪除的資料儲存
             let removedItem = showedItems!.remove(at: indexPath.section)
             
             //  如果items已經空了，就reloadData就好，不然用deleteSection的話會報錯
             if showedItems!.isEmpty{
                 showedItems = nil
                 tableView.reloadData()
+                
             }else{
                 //移除表格
                 //寫deleteRows會報錯，因為我的表格是一個物品代表一個section，此時item減少，section也會減少，但這個func刪掉row後原本的section仍在，故當他偵測到items減少，section數量卻沒變時會報錯
                 //tableView.deleteRows(at: [indexPath], with: .fade) -> 會報錯
                 tableView.deleteSections(IndexSet(integer: indexPath.section), with: .fade)
             }
-            //移除儲存的圖片
-            Item.removeImage(removedItem)
+        
             //回改原儲存資料
             if let savedItems,
                let chosenItemIndex = savedItems.firstIndex(where: { $0.name == removedItem.name })
             {
                 self.savedItems?.remove(at: chosenItemIndex)
+                //刪到光後會變空陣列，不是nil，所以可以大膽強制拆封
                 if self.savedItems!.isEmpty {self.savedItems = nil}
             }
             
@@ -609,6 +630,7 @@ extension MainTableViewController:UISearchResultsUpdating{
     
     
 }
+
 
 
 /*

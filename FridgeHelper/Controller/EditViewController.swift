@@ -18,12 +18,10 @@ class EditViewController: UIViewController {
     @IBOutlet weak var storeConditionSegmentControl: UISegmentedControl!
     
     var item:Item?
-    var image:UIImage?
     var tags:[String]? = ["未選擇"]
     var selectedTagIndex:Int = 0
     var pickView = UIPickerView()
     var datePicker = UIDatePicker()
-    var isCellSelected = false
     var currentObjectButtonY = 0.0
     //var item:Item!   會報nil
     
@@ -99,7 +97,6 @@ class EditViewController: UIViewController {
     func updateUI(){
         //如果第二頁的item有接收第一頁傳來的資料，就把他讀出來並傳到元件上
         if let item{
-            isCellSelected = true
             //讀取名字
             nameTextField.text = item.name
             numberTextField.text = "\(item.number)"
@@ -111,9 +108,8 @@ class EditViewController: UIViewController {
             storeConditionSegmentControl.selectedSegmentIndex = item.storeCondition
             
             //讀取照片到imageView上
-            if let image = Item.loadImage(item){
+            if let imageData = item.image, let image = UIImage(data: imageData){
                 itemImageView.image = image
-                self.image = image
             }
             
         }
@@ -192,40 +188,6 @@ class EditViewController: UIViewController {
             return
         }
         
-        //檢查是否有重複名字的物品，但這只能檢查有存圖片的檔案，若有物品已存在，但沒有存圖片，這個程式碼會無法辨識
-        
-        let filemanager = FileManager()
-        let url = URL.documentsDirectory.appending(path: (nameTextField.text!)).path()
-        guard !filemanager.fileExists(atPath: url.removingPercentEncoding!) else {
-            print("偵測到有相同路徑")
-            let controller = UIAlertController(title: "物品名已存在", message: "請取其他名字", preferredStyle: .alert)
-            let action = UIAlertAction(title: "確定", style: .default)
-            controller.addAction(action)
-            present(controller, animated: true)
-            return
-        }
-         
-        
-        //讀取原本儲存的全部物品，比對修改後的物品名稱，看有無跟原本的重複，但這有bug，如果是進來改名字以外的資訊，名字相同會無法過這關
-        /*
-        if let savedItems = Item.fetchItems(), savedItems.contains(where: { $0.name == nameTextField.text!}) {
-            
-            print("偵測到有相同路徑")
-            let controller = UIAlertController(title: "物品名已存在", message: "請取其他名字", preferredStyle: .alert)
-            let action = UIAlertAction(title: "確定", style: .default)
-            controller.addAction(action)
-            present(controller, animated: true)
-            return
-            
-        }
-        */
-        
-        //如果使用者是修改模式，那先清除存在資料夾裡的照片，避免使用者改名字的話，原名字的圖片檔案會留在app裡卻用不到。
-        //如果使用者後來有按下done，會再把正確的圖片檔名重存
-        if let item{
-            Item.removeImage(item)
-        }
-        
         //把textField的資訊存到item
         let name = nameTextField.text!
         let number = Int(numberTextField.text!)!
@@ -233,14 +195,11 @@ class EditViewController: UIViewController {
         let memo = !memoTextField.text!.isEmpty == true ? memoTextField.text : nil
         let tag = !tagTextField.text!.isEmpty == true ? tagTextField.text : nil
         let storeConditionIndex = storeConditionSegmentControl.selectedSegmentIndex
-        item = Item(name: name, number: number, expiryDate: expiryDate, storeCondition: storeConditionIndex, memo: memo, tag: tag)
-        //print("編輯頁item的名字：\(item?.name)")
+        let imageData =  itemImageView.image?.jpegData(compressionQuality: 0.5)
         
-        //若同時有照片跟物品，就把照片存起來
-        //這裡有bug，萬一改物品名字，則同張照片會存兩個不同檔名(新的跟舊的)
-        if let image, let item{
-            Item.saveImage(item, image: image)
-        }
+        item = Item(name: name, number: number, expiryDate: expiryDate, storeCondition: storeConditionIndex, memo: memo, tag: tag, image: imageData)
+        //print("編輯頁item的名字：\(item?.name)")
+     
         
         //執行segue回到上一頁
         performSegue(withIdentifier: "unwindToMain", sender: nil)
@@ -311,7 +270,6 @@ extension EditViewController:UIImagePickerControllerDelegate, UINavigationContro
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         let image = info[.originalImage] as! UIImage
         itemImageView.image = image
-        self.image = image
         dismiss(animated: true)
     }
 }

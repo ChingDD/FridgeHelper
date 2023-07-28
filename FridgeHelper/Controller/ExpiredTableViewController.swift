@@ -121,7 +121,11 @@ class ExpiredTableViewController: UITableViewController {
             //設定名字
             cell.nameLabel.text = item.name
             //設定圖片內容及高度
-            cell.itemImageView.image = Item.loadImage(item)
+            if let imageData = item.image, let image = UIImage(data: imageData){
+                cell.itemImageView.image = image
+            }else{
+                cell.itemImageView.image = nil
+            }
             cell.itemImageView.contentMode = .scaleAspectFill
 
             //設定label sizeToFit

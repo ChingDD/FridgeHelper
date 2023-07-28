@@ -15,7 +15,7 @@ struct Item:Codable{
     var storeCondition:Int
     var memo:String?
     var tag:String?
-    var photo:Data?
+    var image:Data?
     
     //存照片
 
@@ -36,7 +36,6 @@ struct Item:Codable{
             
         }
 
-        
     }
     
     //讀取照片

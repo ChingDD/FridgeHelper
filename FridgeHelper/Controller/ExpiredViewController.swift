@@ -91,12 +91,18 @@ extension ExpiredViewController:UITableViewDataSource{
             //設定名字
             cell.nameLabel.text = item.name
             //設定圖片內容及高度
-            cell.itemImageView.image = Item.loadImage(item)
-            if let _ = expiredItems?[indexPath.section].memo{
-                cell.itemImageView.frame.origin.y = 35
+            if let imageData = item.image, let image = UIImage(data: imageData){
+                cell.itemImageView.image = image
             }else{
-                cell.itemImageView.frame.origin.y = 13
+                cell.itemImageView.image = nil
             }
+//
+//            if let _ = expiredItems?[indexPath.section].memo{
+//                cell.itemImageView.frame.origin.y = 35
+//            }else{
+//                cell.itemImageView.frame.origin.y = 13
+//            }
+            
             //設定label sizeToFit
             for aView in cell.contentView.subviews{
                 if aView is UILabel{
@@ -114,13 +120,13 @@ extension ExpiredViewController:UITableViewDataSource{
         }
     }
     
-    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        
-        if let _ = expiredItems?[indexPath.section].memo{
-            return 165
-        }else{
-            return 120
-        }
-        
-    }
+//    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+//        
+//        if let _ = expiredItems?[indexPath.section].memo{
+//            return 165
+//        }else{
+//            return 120
+//        }
+//        
+//    }
 }
