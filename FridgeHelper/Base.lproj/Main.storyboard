@@ -42,7 +42,7 @@
         <scene sceneID="QxB-Om-dEc">
             <objects>
                 <tableViewController id="UkZ-Xy-lqQ" customClass="MainTableViewController" customModule="FridgeHelper" customModuleProvider="target" sceneMemberID="viewController">
-                    <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="none" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" estimatedSectionHeaderHeight="-1" sectionFooterHeight="28" estimatedSectionFooterHeight="-1" id="Nv0-vN-AbH">
+                    <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" showsHorizontalScrollIndicator="NO" showsVerticalScrollIndicator="NO" dataMode="prototypes" style="plain" separatorStyle="none" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" estimatedSectionHeaderHeight="-1" sectionFooterHeight="28" estimatedSectionFooterHeight="-1" id="Nv0-vN-AbH">
                         <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <color key="backgroundColor" name="Color5"/>
@@ -60,8 +60,15 @@
                                             </constraints>
                                             <state key="normal" title="Button"/>
                                             <buttonConfiguration key="configuration" style="plain">
-                                                <backgroundConfiguration key="background" image="filter 1" imageContentMode="scaleAspectFill">
+                                                <backgroundConfiguration key="background">
                                                     <color key="backgroundColor" name="Color6"/>
+                                                    <imageReference key="image" image="slider.horizontal.3" catalog="system" renderingMode="hierarchical">
+                                                        <hierarchicalColors>
+                                                            <color name="Color8 icon"/>
+                                                            <color systemColor="secondaryLabelColor"/>
+                                                            <color systemColor="tertiaryLabelColor"/>
+                                                        </hierarchicalColors>
+                                                    </imageReference>
                                                 </backgroundConfiguration>
                                             </buttonConfiguration>
                                         </button>
@@ -74,6 +81,7 @@
                                                 <segment title="冷藏"/>
                                                 <segment title="室溫"/>
                                             </segments>
+                                            <color key="selectedSegmentTintColor" name="Color7"/>
                                             <connections>
                                                 <action selector="chooseStoreCondition:" destination="UkZ-Xy-lqQ" eventType="valueChanged" id="bWq-Li-ksA"/>
                                             </connections>
@@ -86,8 +94,15 @@
                                             <color key="tintColor" name="Color6"/>
                                             <state key="normal" title="Button"/>
                                             <buttonConfiguration key="configuration" style="plain">
-                                                <backgroundConfiguration key="background" image="searching" imageContentMode="scaleAspectFit">
+                                                <backgroundConfiguration key="background" imageContentMode="scaleAspectFit">
                                                     <color key="backgroundColor" name="Color6"/>
+                                                    <imageReference key="image" image="doc.text.magnifyingglass" catalog="system" renderingMode="hierarchical">
+                                                        <hierarchicalColors>
+                                                            <color name="Color8 icon"/>
+                                                            <color name="Color8 icon"/>
+                                                            <color systemColor="tertiaryLabelColor"/>
+                                                        </hierarchicalColors>
+                                                    </imageReference>
                                                 </backgroundConfiguration>
                                             </buttonConfiguration>
                                         </button>
@@ -114,7 +129,7 @@
                                                     <imageReference key="image" image="calendar.badge.exclamationmark" catalog="system" symbolScale="small" renderingMode="hierarchical">
                                                         <hierarchicalColors>
                                                             <color systemColor="systemYellowColor"/>
-                                                            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                            <color name="Color8 icon"/>
                                                             <color systemColor="tertiaryLabelColor"/>
                                                         </hierarchicalColors>
                                                     </imageReference>
@@ -195,14 +210,14 @@
                                                                         <stackView opaque="NO" contentMode="scaleToFill" spacing="6" translatesAutoresizingMaskIntoConstraints="NO" id="In1-H1-BKg">
                                                                             <rect key="frame" x="40" y="0.0" width="95" height="20.5"/>
                                                                             <subviews>
-                                                                                <button opaque="NO" tag="1" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="UjN-rv-TPf">
+                                                                                <button opaque="NO" tag="1" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" adjustsImageWhenHighlighted="NO" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="UjN-rv-TPf">
                                                                                     <rect key="frame" x="0.0" y="0.0" width="24" height="20.5"/>
                                                                                     <state key="normal" title="Button"/>
                                                                                     <buttonConfiguration key="configuration" style="plain">
                                                                                         <backgroundConfiguration key="background">
                                                                                             <imageReference key="image" image="minus.square.fill" catalog="system" renderingMode="hierarchical">
                                                                                                 <hierarchicalColors>
-                                                                                                    <color name="Color6"/>
+                                                                                                    <color name="Color9"/>
                                                                                                     <color systemColor="secondaryLabelColor"/>
                                                                                                     <color name="Color"/>
                                                                                                 </hierarchicalColors>
@@ -219,14 +234,14 @@
                                                                                     <color key="textColor" name="Color6"/>
                                                                                     <nil key="highlightedColor"/>
                                                                                 </label>
-                                                                                <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="Sxf-ac-4eD">
+                                                                                <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" adjustsImageWhenHighlighted="NO" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="Sxf-ac-4eD">
                                                                                     <rect key="frame" x="71" y="0.0" width="24" height="20.5"/>
                                                                                     <state key="normal" title="Button"/>
                                                                                     <buttonConfiguration key="configuration" style="plain">
                                                                                         <backgroundConfiguration key="background">
                                                                                             <imageReference key="image" image="plus.square.fill" catalog="system" renderingMode="hierarchical">
                                                                                                 <hierarchicalColors>
-                                                                                                    <color name="Color6"/>
+                                                                                                    <color name="Color9"/>
                                                                                                     <color systemColor="secondaryLabelColor"/>
                                                                                                     <color name="Color"/>
                                                                                                 </hierarchicalColors>
@@ -287,7 +302,7 @@
                                                     </subviews>
                                                 </stackView>
                                             </subviews>
-                                            <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                                            <color key="backgroundColor" name="Color7"/>
                                             <constraints>
                                                 <constraint firstItem="AoU-v8-jyO" firstAttribute="leading" secondItem="0k4-Um-aHU" secondAttribute="leading" constant="15" id="Ppk-TZ-vys"/>
                                                 <constraint firstAttribute="trailing" secondItem="AoU-v8-jyO" secondAttribute="trailing" constant="15" id="QxV-hO-x7V"/>
@@ -421,7 +436,7 @@
                         <subviews>
                             <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="XbM-Dy-kI1">
                                 <rect key="frame" x="72" y="110" width="270" height="250"/>
-                                <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <color key="backgroundColor" name="Color7"/>
                                 <constraints>
                                     <constraint firstAttribute="width" secondItem="XbM-Dy-kI1" secondAttribute="height" multiplier="27:25" id="oEW-Ed-I50"/>
                                 </constraints>
@@ -440,6 +455,8 @@
                                             </label>
                                             <textField opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="248" contentHorizontalAlignment="left" contentVerticalAlignment="center" borderStyle="roundedRect" textAlignment="natural" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="Mwv-jY-ybd">
                                                 <rect key="frame" x="65" y="0.0" width="269" height="56"/>
+                                                <color key="backgroundColor" red="0.97254901960784312" green="0.97254901960784312" blue="0.97254901960784312" alpha="1" colorSpace="calibratedRGB"/>
+                                                <color key="textColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                 <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                                 <textInputTraits key="textInputTraits"/>
                                                 <connections>
@@ -459,6 +476,8 @@
                                             </label>
                                             <textField opaque="NO" tag="1" contentMode="scaleToFill" horizontalHuggingPriority="248" contentHorizontalAlignment="left" contentVerticalAlignment="center" borderStyle="roundedRect" textAlignment="natural" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="VNt-bd-aSb">
                                                 <rect key="frame" x="65" y="0.0" width="269" height="56"/>
+                                                <color key="backgroundColor" red="0.97254901960784312" green="0.97254901960784312" blue="0.97254901960784312" alpha="1" colorSpace="calibratedRGB"/>
+                                                <color key="textColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                 <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                                 <textInputTraits key="textInputTraits"/>
                                                 <connections>
@@ -478,6 +497,8 @@
                                             </label>
                                             <textField opaque="NO" tag="2" contentMode="scaleToFill" horizontalHuggingPriority="248" contentHorizontalAlignment="left" contentVerticalAlignment="center" borderStyle="roundedRect" textAlignment="natural" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="rcv-KO-Jio">
                                                 <rect key="frame" x="87.5" y="0.0" width="246.5" height="56"/>
+                                                <color key="backgroundColor" red="0.97254901960784312" green="0.97254901960784312" blue="0.97254901960784312" alpha="1" colorSpace="calibratedRGB"/>
+                                                <color key="textColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                 <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                                 <textInputTraits key="textInputTraits"/>
                                             </textField>
@@ -505,7 +526,7 @@
                                     <stackView opaque="NO" contentMode="scaleToFill" spacing="24" translatesAutoresizingMaskIntoConstraints="NO" id="vXt-7z-wbI">
                                         <rect key="frame" x="0.0" y="304" width="334" height="56"/>
                                         <subviews>
-                                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="種類" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="JNu-Ho-c3a">
+                                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="標籤" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="JNu-Ho-c3a">
                                                 <rect key="frame" x="0.0" y="0.0" width="41" height="56"/>
                                                 <fontDescription key="fontDescription" type="system" weight="medium" pointSize="20"/>
                                                 <color key="textColor" name="Color6"/>
@@ -513,6 +534,8 @@
                                             </label>
                                             <textField opaque="NO" tag="3" contentMode="scaleToFill" horizontalHuggingPriority="248" contentHorizontalAlignment="left" contentVerticalAlignment="center" borderStyle="roundedRect" textAlignment="natural" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="w8k-IR-DBS">
                                                 <rect key="frame" x="65" y="0.0" width="269" height="56"/>
+                                                <color key="backgroundColor" red="0.97254901960784312" green="0.97254901960784312" blue="0.97254901960784312" alpha="1" colorSpace="calibratedRGB"/>
+                                                <color key="textColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                 <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                                 <textInputTraits key="textInputTraits"/>
                                             </textField>
@@ -529,6 +552,8 @@
                                             </label>
                                             <textField opaque="NO" tag="4" contentMode="scaleToFill" horizontalHuggingPriority="248" contentHorizontalAlignment="left" contentVerticalAlignment="center" borderStyle="roundedRect" textAlignment="natural" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="3yt-L7-yrF">
                                                 <rect key="frame" x="65" y="0.0" width="269" height="56"/>
+                                                <color key="backgroundColor" red="0.97254901960784312" green="0.97254901960784312" blue="0.97254901960784312" alpha="1" colorSpace="calibratedRGB"/>
+                                                <color key="textColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                 <fontDescription key="fontDescription" type="system" pointSize="14"/>
                                                 <textInputTraits key="textInputTraits"/>
                                                 <connections>
@@ -601,7 +626,7 @@
                     <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="insetGrouped" separatorStyle="default" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="18" estimatedSectionHeaderHeight="-1" sectionFooterHeight="18" id="D3a-Vh-t37">
                         <rect key="frame" x="0.0" y="0.0" width="414" height="886"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <color key="backgroundColor" name="Color6"/>
+                        <color key="backgroundColor" name="Color9"/>
                         <view key="tableHeaderView" contentMode="scaleToFill" id="eSu-1r-sfp">
                             <rect key="frame" x="0.0" y="0.0" width="414" height="44"/>
                             <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
@@ -632,7 +657,7 @@
                                     <state key="normal" title="Button"/>
                                     <buttonConfiguration key="configuration" style="plain" image="xmark.circle.fill" catalog="system">
                                         <preferredSymbolConfiguration key="preferredSymbolConfigurationForImage" configurationType="pointSize" pointSize="14"/>
-                                        <color key="baseForegroundColor" name="Color6"/>
+                                        <color key="baseForegroundColor" name="Color9"/>
                                     </buttonConfiguration>
                                     <connections>
                                         <action selector="backToMain:" destination="Wvy-er-6N8" eventType="touchUpInside" id="sZO-bf-aee"/>
@@ -731,7 +756,7 @@
                                             </subviews>
                                         </stackView>
                                     </subviews>
-                                    <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                    <color key="backgroundColor" name="Color 10"/>
                                     <constraints>
                                         <constraint firstAttribute="bottom" secondItem="kWO-qY-0Bc" secondAttribute="bottom" constant="10" id="Cbt-9U-hxC"/>
                                         <constraint firstAttribute="trailing" secondItem="kWO-qY-0Bc" secondAttribute="trailing" constant="10" id="I8H-yQ-egO"/>
@@ -763,7 +788,7 @@
                                             <nil key="highlightedColor"/>
                                         </label>
                                     </subviews>
-                                    <color key="backgroundColor" name="Color5"/>
+                                    <color key="backgroundColor" name="Color7"/>
                                     <constraints>
                                         <constraint firstItem="vMe-OP-aQg" firstAttribute="centerX" secondItem="B6b-XM-GSf" secondAttribute="centerX" id="Tg4-mf-xQd"/>
                                         <constraint firstItem="vMe-OP-aQg" firstAttribute="centerY" secondItem="B6b-XM-GSf" secondAttribute="centerY" id="nvf-dU-mKR"/>
@@ -807,7 +832,7 @@
                                             <nil key="highlightedColor"/>
                                         </label>
                                     </subviews>
-                                    <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                    <color key="backgroundColor" name="Color7"/>
                                 </tableViewCellContentView>
                                 <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                             </tableViewCell>
@@ -870,17 +895,20 @@
     <resources>
         <image name="calendar.badge.exclamationmark" catalog="system" width="128" height="108"/>
         <image name="camera" catalog="system" width="128" height="93"/>
+        <image name="doc.text.magnifyingglass" catalog="system" width="110" height="128"/>
         <image name="exclamationmark.triangle.fill" catalog="system" width="128" height="109"/>
-        <image name="filter 1" width="512" height="512"/>
         <image name="minus.square.fill" catalog="system" width="128" height="114"/>
         <image name="plus.app.fill" catalog="system" width="128" height="114"/>
         <image name="plus.square.fill" catalog="system" width="128" height="114"/>
         <image name="refrigerator.fill" catalog="system" width="95" height="128"/>
-        <image name="searching" width="512" height="512"/>
+        <image name="slider.horizontal.3" catalog="system" width="128" height="99"/>
         <image name="tag.fill" catalog="system" width="128" height="118"/>
         <image name="xmark.circle.fill" catalog="system" width="128" height="123"/>
         <namedColor name="Color">
             <color red="0.88235294117647056" green="0.83137254901960789" blue="0.73333333333333328" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="Color 10">
+            <color red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
         <namedColor name="Color2">
             <color red="1" green="0.96470588235294119" blue="0.74117647058823533" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
@@ -891,11 +919,17 @@
         <namedColor name="Color6">
             <color red="0.32549019607843138" green="0.44313725490196076" blue="0.53333333333333333" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
+        <namedColor name="Color7">
+            <color red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="Color8 icon">
+            <color red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="Color9">
+            <color red="0.32549019607843138" green="0.44313725490196076" blue="0.53333333333333333" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
         <systemColor name="secondaryLabelColor">
             <color red="0.23529411764705882" green="0.23529411764705882" blue="0.2627450980392157" alpha="0.59999999999999998" colorSpace="custom" customColorSpace="sRGB"/>
-        </systemColor>
-        <systemColor name="systemBackgroundColor">
-            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>
         <systemColor name="systemPinkColor">
             <color red="1" green="0.17647058823529413" blue="0.33333333333333331" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>

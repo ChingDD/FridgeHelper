@@ -68,6 +68,7 @@ class MainTableViewController: UITableViewController {
     var isSearching = false
     var searchingItems:[Item]?
     
+    //MARK: - viewController life cycle
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -83,7 +84,7 @@ class MainTableViewController: UITableViewController {
         
         //改變segmentControl UI
         storeConditionSegmentControl.setTitleTextAttributes([NSAttributedString.Key.foregroundColor:UIColor(named: "Color6")!], for: .selected)
-        storeConditionSegmentControl.setTitleTextAttributes([NSAttributedString.Key.foregroundColor:UIColor.white], for: .normal)
+        storeConditionSegmentControl.setTitleTextAttributes([NSAttributedString.Key.foregroundColor:UIColor(named: "Color7")!], for: .normal)
         //篩選按鈕加入menu
         sortItemBtn.menu = setSortMethodMenu()
         sortItemBtn.showsMenuAsPrimaryAction = true
@@ -377,7 +378,7 @@ class MainTableViewController: UITableViewController {
             self.savedItems?[chosenItemIndex].number = number
         }
         
-        tableView.reloadRows(at: [indexPath], with: .automatic)
+        tableView.reloadRows(at: [indexPath], with: .none)
     }
     
     
