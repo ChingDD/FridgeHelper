@@ -136,7 +136,6 @@
                                                 </backgroundConfiguration>
                                             </buttonConfiguration>
                                             <connections>
-                                                <action selector="showExpiredItems:" destination="UkZ-Xy-lqQ" eventType="touchUpInside" id="NzR-W8-vdK"/>
                                                 <segue destination="Wvy-er-6N8" kind="presentation" id="m9q-bA-X0x"/>
                                             </connections>
                                         </button>
@@ -171,9 +170,6 @@
                                 <constraint firstItem="6LT-7j-AFc" firstAttribute="leading" secondItem="V5i-Oh-1Cf" secondAttribute="leading" id="tB0-Hu-qLP"/>
                                 <constraint firstItem="V5i-Oh-1Cf" firstAttribute="leading" secondItem="5HX-Bh-jgt" secondAttribute="leading" constant="20" id="y5w-LW-AaO"/>
                             </constraints>
-                            <connections>
-                                <outletCollection property="gestureRecognizers" destination="BEl-kI-4Ua" appends="YES" id="OKX-w9-JI9"/>
-                            </connections>
                         </view>
                         <prototypes>
                             <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="none" indentationWidth="10" reuseIdentifier="ItemTableViewCell" rowHeight="165" id="Mo7-mZ-TWE" customClass="ItemTableViewCell" customModule="FridgeHelper" customModuleProvider="target">
@@ -372,12 +368,6 @@
                     </tableView>
                     <tabBarItem key="tabBarItem" title="" image="refrigerator.fill" catalog="system" id="cU0-Yz-cec"/>
                     <navigationItem key="navigationItem" style="editor" id="TwT-Vp-iAc">
-                        <barButtonItem key="leftBarButtonItem" systemItem="search" id="kqB-D7-fC5">
-                            <color key="tintColor" name="Color6"/>
-                            <connections>
-                                <action selector="callSearchBar:" destination="UkZ-Xy-lqQ" id="IF2-ho-4L2"/>
-                            </connections>
-                        </barButtonItem>
                         <rightBarButtonItems>
                             <barButtonItem id="8d2-q2-hH7">
                                 <imageReference key="image" image="plus.app.fill" catalog="system" renderingMode="hierarchical">
@@ -414,11 +404,7 @@
                     </connections>
                 </tableViewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="HQI-Z8-nc9" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
-                <tapGestureRecognizer id="BEl-kI-4Ua">
-                    <connections>
-                        <action selector="backToOffSearching:" destination="UkZ-Xy-lqQ" id="Ag9-Z6-kEX"/>
-                    </connections>
-                </tapGestureRecognizer>
+                <tapGestureRecognizer id="BEl-kI-4Ua"/>
             </objects>
             <point key="canvasLocation" x="2524.6376811594205" y="-29.347826086956523"/>
         </scene>

@@ -63,14 +63,18 @@ class MainTableViewController: UITableViewController {
     }
     //目前篩選器的選擇
     var currentSelector = SortMethod.取消
-    //搜尋列狀態
-    var searchBar:UISearchBar!
-    var isSearching = false
+    
+    //搜尋列
     var searchingItems:[Item]?
+    var keyword = ""
     
     //MARK: - viewController life cycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        //生成搜尋列
+        let searchController = UISearchController()
+        navigationItem.searchController = searchController
+        searchController.searchResultsUpdater = self
         
         //讀取存在Document資料夾的items
         let url = URL.documentsDirectory.appending(path: "items")
@@ -90,15 +94,6 @@ class MainTableViewController: UITableViewController {
         sortItemBtn.showsMenuAsPrimaryAction = true
         //導航列的title
         title = "FridgeHelper"
-        //製作searchBar
-        searchBar = UISearchBar()
-        searchBar.frame.size = CGSize(width: tableView.bounds.width, height: tableView.bounds.height/15)
-        searchBar.frame.origin = CGPoint(x: 0, y: 0)
-        //searchBar.barTintColor = UIColor(named: "Color5")
-        //searchBar.layer.shadowColor = UIColor.red.cgColor
-        searchBar.delegate = self
-        tableHeaderView.addSubview(searchBar)
-        searchBar.isHidden = true
         //將過期數量的label設成isHidden
         expiredAmounts.isHidden = true
     }
@@ -137,65 +132,54 @@ class MainTableViewController: UITableViewController {
     
     //MARK: - 自定義function
     
-    func searchKeyWord()->[Item]?{
-        if isSearching{
-            let result = showedItems?.filter({ $0.name.hasPrefix(searchBar.text!) })
-            showedItems = result
+    
+    func searchKeywords(_ inputText:String)->[Item]?{
+        if !inputText.isEmpty{
+            let result = showedItems?.filter({ $0.name.contains(inputText) })
+            return result
+        }else{
             return showedItems
+        }
+    }
+    
+    func selectedTagItems()->[Item]?{
+        
+        if isTagSelectorOn{
+            let selectedTagItems = showedItems?.filter({ $0.tag == currentTag})
+            return selectedTagItems
         }else{
             return showedItems
         }
     }
     
     func selectShowedItem(){
-        if isTagSelectorOn == false{
-            switch storeConditionSegmentControl.selectedSegmentIndex{
-            case 0:
-                showedItems = savedItems
-                showedItems = currentSelector.sortShowedItems(showedItems)
-                searchingItems = searchKeyWord()
-            case 1:
-                showedItems = savedItems?.filter { $0.storeCondition==0 }
-                showedItems = currentSelector.sortShowedItems(showedItems)
-                searchingItems = searchKeyWord()
-            case 2:
-                showedItems = savedItems?.filter { $0.storeCondition==1 }
-                showedItems = currentSelector.sortShowedItems(showedItems)
-                searchingItems = searchKeyWord()
-            case 3:
-                showedItems = savedItems?.filter { $0.storeCondition==2 }
-                showedItems = currentSelector.sortShowedItems(showedItems)
-                searchingItems = searchKeyWord()
-            default:
-                break
-            }
-        }else if isTagSelectorOn == true{
-            switch storeConditionSegmentControl.selectedSegmentIndex{
-            case 0:
-                showedItems = savedItems
-                showedItems = showedItems?.filter({ $0.tag == currentTag})
-                showedItems = currentSelector.sortShowedItems(showedItems)
-                searchingItems = searchKeyWord()
-            case 1:
-                showedItems = savedItems?.filter { $0.storeCondition==0 }
-                showedItems = showedItems?.filter({ $0.tag == currentTag})
-                showedItems = currentSelector.sortShowedItems(showedItems)
-                searchingItems = searchKeyWord()
-            case 2:
-                showedItems = savedItems?.filter { $0.storeCondition==1 }
-                showedItems = showedItems?.filter({ $0.tag == currentTag})
-                showedItems = currentSelector.sortShowedItems(showedItems)
-                searchingItems = searchKeyWord()
-            case 3:
-                showedItems = savedItems?.filter { $0.storeCondition==2 }
-                showedItems = showedItems?.filter({ $0.tag == currentTag})
-                showedItems = currentSelector.sortShowedItems(showedItems)
-                searchingItems = searchKeyWord()
-            default:
-                break
-            }
+        switch storeConditionSegmentControl.selectedSegmentIndex{
+        case 0:
+            showedItems = savedItems
+            showedItems = currentSelector.sortShowedItems(showedItems)
+            showedItems = searchKeywords(keyword)
+            showedItems = selectedTagItems()
+        case 1:
+            showedItems = savedItems?.filter { $0.storeCondition==0 }
+            showedItems = currentSelector.sortShowedItems(showedItems)
+            showedItems = searchKeywords(keyword)
+            showedItems = selectedTagItems()
+        case 2:
+            showedItems = savedItems?.filter { $0.storeCondition==1 }
+            showedItems = currentSelector.sortShowedItems(showedItems)
+            showedItems = searchKeywords(keyword)
+            showedItems = selectedTagItems()
+        case 3:
+            showedItems = savedItems?.filter { $0.storeCondition==2 }
+            showedItems = currentSelector.sortShowedItems(showedItems)
+            showedItems = searchKeywords(keyword)
+            showedItems = selectedTagItems()
+        default:
+            break
         }
     }
+    
+    
     
     //建立標籤按鈕
     func setTagPopUpMenu(tags:[String]?)->UIMenu{
@@ -290,9 +274,8 @@ class MainTableViewController: UITableViewController {
     //MARK: - Target Action
     //測試OK
     @IBAction func unwindToMain(_ unwindSegue: UIStoryboardSegue) {
+        print("unwindToMain")
         let controller = unwindSegue.source as! EditViewController
-
-        
         //若是新增時，是點選新增紐，則這頁的tableViewCell不會被點選，所以indexPathForSelectedRow會是nil，那就會走第一段
         //tableView.indexPathForSelectedRow?.section == nil
         if isCellSelected == false{
@@ -322,18 +305,30 @@ class MainTableViewController: UITableViewController {
             //要是修改，表示是點cell到下一頁，則indexPathForSelectedRow會呈現點選狀態，就不是nil，因此會跑這段
             let index = tableView.indexPathForSelectedRow!.section
             
-            //先移除總物品裡的舊資料，再插入新的資料
+            //利用index找到showedItems的裡的物品，在尚未更新showedItems前先把該物品讀出來，然後藉由name比對savedItems來得到該物品在savedItems裡的indexPath
+            //得到後移除savedItems裡的該物品，再把剛剛傳過來的新物品插入
             if let savedItems, let chosenItemIndex = savedItems.firstIndex(where:{ $0.name == showedItems?[index].name }){
-                //這邊利用名字來來找存的資料，但要是我們修改的是名字，那存的檔案裡就永遠找不到這筆資料，就不能存入修改的資料
+                
                 self.savedItems?.remove(at: chosenItemIndex)
                 self.savedItems?.insert(controller.item!, at: chosenItemIndex)
+                
             }
             
-            //更改目前items的資訊
-            showedItems?[index] = controller.item!
-            //更新表格
-            tableView.reloadRows(at: [IndexPath(row: 0, section: index)], with: .automatic)
-            //取消表格被選取
+            //更改完savedItems後再更改showedItems的資訊
+            //showedItems?[index] = controller.item! -> bug：要是更換儲存條件，還是會出現仍在原儲存條件的table上
+            selectShowedItem()
+            tableView.reloadData()
+            /*更新表格
+             如果是更新原cell上面的數量或資訊，可以用reloadRows
+             如果是更新item的儲存條件，導致cell不存在當前頁面，則使用reloadRows會報錯，因為reloadRows是重整當前存在的頁面
+             如果是上述情況，則可使用deleteSections，因為cell不存在當前頁面，所以表格可以以刪除方式刪掉該cell
+             但如果只是單純更新原cell上面的數量或資訊，deleteSections又會出錯
+             所以最好的方法是reloadData
+             
+             tableView.reloadRows(at: [IndexPath(row: 0, section: index)], with: .automatic)
+             tableView.deleteSections(IndexSet(integer: index), with: .fade)
+             */
+            
         }
     }
     
@@ -381,32 +376,6 @@ class MainTableViewController: UITableViewController {
         tableView.reloadRows(at: [indexPath], with: .none)
     }
     
-    
-    @IBAction func callSearchBar(_ sender: UIBarButtonItem) {
-        if isSearching == true{
-            searchBar.isHidden = true
-            isSearching = false
-            tableHeaderView.endEditing(true)
-            selectShowedItem()
-            tableView.reloadData()
-        }else{
-            searchBar.isHidden = false
-            isSearching = true
-        }
-    }
-    
-    
-    @IBAction func backToOffSearching(_ sender: Any) {
-        tableHeaderView.endEditing(true)
-    }
-    
-    
-    @IBAction func showExpiredItems(_ sender: Any) {
-//        let controller = storyboard?.instantiateViewController(identifier: "ExpiredViewController")
-//        present(controller!, animated: true)
-        
-        
-    }
     
     
     
@@ -466,15 +435,8 @@ class MainTableViewController: UITableViewController {
             }
             
             
-            //圖像設定
-            if showedItem.memo == nil{
-                print("memo為nil：圖片的y減少")
-                //itemcell.itemImageView.frame.origin.y = 9
-            }else{
-                //itemcell.itemImageView.frame.origin.y = 26
-            }
-            
             //MARK: - 照片can呈現中文檔名
+            //沒有照片的cell，image裡面存nil，因爲有存東西，所以不會被reuse的cell圖片蓋掉
             itemcell.itemImageView.image = Item.loadImage(showedItem)
             itemcell.itemImageView.contentMode = .scaleAspectFill
             
@@ -491,8 +453,8 @@ class MainTableViewController: UITableViewController {
     
     //MARK: - Table View Delegate
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        //cell被點選狀態變成true
-       
+        print("didSelectRowAt")
+
         //不能用以下程式碼把選到的東東西放入item變數，因為會先跑prepare，才跑到這邊，所以會來不及準備要傳過去的item
 //        print("跑didSelectRowAt")
 //        print(indexPath.section)
@@ -502,38 +464,22 @@ class MainTableViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, willSelectRowAt indexPath: IndexPath) -> IndexPath? {
+        //cell被點選狀態變成true
+        //寫這邊不寫在didSelectRowAt的原因：因為didSelectRowAt最後才跑，這樣的話isCellSelected來不及變true，就會先被prepare讀到false
+        /*
+         willSelectRowAt
+         isCellSelected：true
+         跑prepare
+         跑到prepare裡的indexPathForSelectedRow
+         didSelectRowAt
+
+         */
         print("willSelectRowAt")
         isCellSelected = true
         return indexPath
     }
     
-    
-//    override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-//            return showedItems?[indexPath.section].memo == nil ? 130 : 165
-//
-//    }
-    
 
-     //Override to support editing the table view.
-    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            //刪除資料
-            let removedItem = showedItems!.remove(at: indexPath.section)
-            //移除表格
-            tableView.deleteRows(at: [indexPath], with: .fade)
-            //移除儲存的圖片
-            Item.removeImage(removedItem)
-            //回改原儲存資料
-            if var savedItems = Item.fetchItems(),
-               let chosenItemIndex = savedItems.firstIndex(where: { $0.name == showedItems?[indexPath.section].name })
-            {
-                savedItems.remove(at: chosenItemIndex)
-                Item.saveItems(savedItems)
-                print("items已存擋")
-            }
-        }
-    }
-    
     
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
         //準備刪除按鈕
@@ -650,18 +596,17 @@ class MainTableViewController: UITableViewController {
     */
 
 }
-extension MainTableViewController:UISearchBarDelegate{
-    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        print("跑searchBar")
-        //當刪到沒字時，searchText會變空字串，此時filter會認為所有的字串都有空字串，都會return true，所以會把showedItems所有的資料都存到searchingItems
-        selectShowedItem()
-        tableView.reloadData()
+
+//MARK: protocol
+extension MainTableViewController:UISearchResultsUpdating{
+    func updateSearchResults(for searchController: UISearchController) {
+        if let searchText = searchController.searchBar.text{
+            keyword = searchText
+            selectShowedItem()
+            tableView.reloadData()
+        }
     }
     
-    
-    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-        tableHeaderView.endEditing(true)
-    }
     
 }
 
