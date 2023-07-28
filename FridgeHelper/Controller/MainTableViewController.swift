@@ -115,7 +115,7 @@ class MainTableViewController: UITableViewController {
         
         //抓出有過期的物品
         expiredItems = savedItems?.filter({
-          return $0.expiryDate.timeIntervalSinceNow <= 259200
+          $0.expiryDate.timeIntervalSinceNow <= 259200
         })
         
         //如果過濾完結果是空字串，就設回nil，否則就顯示警示Label個數
@@ -361,8 +361,11 @@ class MainTableViewController: UITableViewController {
     }
 
     @IBAction func changeAmount(_ sender: UIButton) {
+        
         let point = sender.convert(CGPoint.zero, to: tableView)
+        
         guard let indexPath = tableView.indexPathForRow(at: point) else {return}
+        
         var number = showedItems![indexPath.section].number
         
         switch sender.tag{
@@ -382,12 +385,13 @@ class MainTableViewController: UITableViewController {
         let cell = tableView.cellForRow(at: indexPath) as! ItemTableViewCell
         cell.numberLabel.text = "\(number)"
         
+        
         //回改item的數量
-        if let savedItems,
-           let chosenItemIndex = savedItems.firstIndex(where: { $0.name == showedItems?[indexPath.section].name })
-        {
+        if let chosenItemIndex = savedItems?.firstIndex(where:{ $0.name == showedItems?[indexPath.section].name && $0.expiryDate == showedItems?[indexPath.section].expiryDate }){
+
             self.showedItems?[indexPath.section].number = number
             self.savedItems?[chosenItemIndex].number = number
+
         }
         
         tableView.reloadRows(at: [indexPath], with: .none)
@@ -525,17 +529,19 @@ class MainTableViewController: UITableViewController {
             }
         
             //回改原儲存資料
-            if let savedItems,
-               let chosenItemIndex = savedItems.firstIndex(where: { $0.name == removedItem.name })
-            {
+            if let chosenItemIndex = savedItems?.firstIndex(where:{ $0.name == removedItem.name && $0.expiryDate == removedItem.expiryDate }){
+
                 self.savedItems?.remove(at: chosenItemIndex)
                 //刪到光後會變空陣列，不是nil，所以可以大膽強制拆封
                 if self.savedItems!.isEmpty {self.savedItems = nil}
             }
             
+            
+       
+            
             //若刪除的資料是過期的物品，則要更新過期物品的label數量
             //step1. 先看expiredItems裡是否有移除的物品，有的話就篩出來
-            if let removedExpiredItemIndex = expiredItems?.firstIndex(where: { $0.name == removedItem.name }){
+            if let removedExpiredItemIndex = expiredItems?.firstIndex(where: { $0.name == removedItem.name && $0.expiryDate == removedItem.expiryDate }){
                 
                 //step2. 若有篩到，就刪除過期物品裡的東西
                 expiredItems?.remove(at: removedExpiredItemIndex)

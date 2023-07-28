@@ -60,7 +60,7 @@ class ExpiredTableViewController: UITableViewController {
         savedItems = Item.fetchItems()
         expiredItems = savedItems?.filter({
             //259200為三天前的秒數，表示過期日小於三天會提醒
-          return $0.expiryDate.timeIntervalSinceNow <= 259200
+           $0.expiryDate.timeIntervalSinceNow <= 259200
         })
         //如果過濾完結果是空字串，表示沒篩到，就設回nil
         if let expiredItems{
