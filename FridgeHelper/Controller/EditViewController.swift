@@ -293,7 +293,15 @@ extension EditViewController:UITextFieldDelegate{
             textField.inputView = pickView
             textField.inputAccessoryView = setTagToolBarBtn()
         }else if textField.tag == 2{
+//            textField.inputView = nil
+//            datePicker = dateController.share.createDatePicker()
+//            datePicker.frame = CGRect(x: view.frame.midX-datePicker.frame.width/2, y: view.frame.midY-datePicker.frame.height/2, width: view.frame.width*0.8, height: datePicker.frame.width)
+//            datePicker.backgroundColor = UIColor(named: "Color7")
+//            datePicker.isEnabled = true
+//            view.addSubview(datePicker)
+//            print(datePicker.frame)
             datePicker = dateController.share.createDatePicker()
+            datePicker.frame = CGRect(x: 0, y: 0, width: view.frame.width, height: 400)
             textField.inputView = datePicker
             textField.inputAccessoryView = setDateToolBarBtn()
         }else if textField.tag == 1{
