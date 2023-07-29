@@ -7,13 +7,13 @@
 
 import UIKit
 
-class TagTableViewController: UITableViewController {
+class TagTableViewController: UITableViewController{
     let defaultTags = ["蔬菜","水果","肉類","魚類"]
     var tags:[String]?{
         didSet{
-            print("抓資料前\(tags)")
+            print("抓資料前\(String(describing: tags))")
             TagController.shared.saveTags(tags: tags)
-            print("抓資料後\(tags)")
+            print("抓資料後\(String(describing: tags))")
 
 //            //當tag都刪光了，就把路徑移除
 //            if let tags, tags.isEmpty {
@@ -46,6 +46,7 @@ class TagTableViewController: UITableViewController {
         let alertController = UIAlertController(title: "標籤", message: "新增標籤", preferredStyle: .alert)
         alertController.addTextField {textField in
             textField.placeholder = "標籤名稱(不能為空白)"
+            textField.delegate = self
         }
         
         //MARK: - 待修正會輸入空格
@@ -124,7 +125,7 @@ class TagTableViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == .delete {
             tags?.remove(at: indexPath.row)
-            print("刪完後的tags：\(tags)")
+            print("刪完後的tags：\(String(describing: tags))")
             if tags!.isEmpty{
                 tableView.reloadData()
             }else{
@@ -160,4 +161,14 @@ class TagTableViewController: UITableViewController {
     }
     */
 
+}
+
+extension TagTableViewController:UITextFieldDelegate {
+    func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+        if string.contains(" "){
+            return false
+        }else{
+            return true
+        }
+    }
 }
