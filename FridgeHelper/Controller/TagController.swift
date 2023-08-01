@@ -36,6 +36,8 @@ class TagController{
     
     
     func updateClickUI(_ button:UIButton ,currentTag:String?){
+        //只要Main畫面啟動，會預設讓cancel的按鈕勾起來
+        //如果currentTag有東西，表示還是在選擇tag的狀態，則篩選看是選到哪個tag，該tag的按鈕要勾起來
         if let currentTag{
             button.menu?.children.forEach {
                 let tagAction = $0 as! UIAction

@@ -47,6 +47,7 @@ class MainTableViewController: UITableViewController {
     var item:Item?
     //儲存的tag
     var tags:[String]?
+    let defaultTags = ["蔬菜","水果","肉類","魚類"]
     //標籤篩選器
     var isTagSelectorOn:Bool = false{
         didSet{
@@ -102,12 +103,30 @@ class MainTableViewController: UITableViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         //讀取存在Document資料夾的tags
+        //app一安裝時是沒存資料的，所以抓出來一定是nil
+        //但如果後來刪光，資料都是存空字串
         tags = TagController.shared.fetchTags()
-        //加入Menu
-        let menu = setTagPopUpMenu(tags: tags)
-        tagFilterBtn.menu = menu
-        //更新勾選狀態
-        TagController.shared.updateClickUI(tagFilterBtn, currentTag: currentTag)
+        //判斷是真的有東西還是空字串
+        if let tags{
+            //將讀出來的資料存進要被辨識的變數tag
+            self.tags = tags
+            //加入Menu
+            //這個函式會判斷，如果有是真的有存資料，則會把資料都變成UIAction後，再插入一個Cancel的UIAction後回傳menu
+            //如果是空字串，則會回傳"尚未建立標籤"的menu(不會插入Cancel的UIAction)
+            let menu = setTagPopUpMenu(tags: tags)
+            tagFilterBtn.menu = menu
+            //更新勾選狀態，因為畫面出現都會以cancel預設打勾，這裡要辨別剛剛是點選哪個tag，讓畫面出現時使正確的tag打勾
+            TagController.shared.updateClickUI(tagFilterBtn, currentTag: currentTag)
+        }else{
+            //如果tags讀出來是nil，表示使用者剛安裝這個App，因此會顯示預設的tag給使用者
+            tags = defaultTags
+            //加入Menu
+            let menu = setTagPopUpMenu(tags: tags)
+            tagFilterBtn.menu = menu
+            //備註：這段else只會跑一次，因為使用者刪光，也會變空字串，怎樣都不會跑到tag是nil的這段
+        }
+        
+        
         //點了btn才會有反應
         tagFilterBtn.showsMenuAsPrimaryAction = true
         //取消cell被選擇的狀態
@@ -186,7 +205,7 @@ class MainTableViewController: UITableViewController {
     //建立標籤按鈕
     func setTagPopUpMenu(tags:[String]?)->UIMenu{
         //如果tags是nil，則顯示尚未建立標籤的UIAction
-        guard let tags else {
+        guard let tags, !tags.isEmpty else {
             let noTagBtn = UIAction(title: "尚未建立標籤") { _ in
                 print("尚未建立標籤")
             }
@@ -209,6 +228,7 @@ class MainTableViewController: UITableViewController {
             return tagBtn
         }
         //取消標籤按鈕
+        //cancel的按鈕在畫面出現時會預設被勾起來
         let cancelAction = UIAction(title: "取消標籤選擇",state: .on) {[self] _ in
             print( "取消標籤")
             isTagSelectorOn = false
@@ -353,7 +373,7 @@ class MainTableViewController: UITableViewController {
    
     //測試OK
     
-    //MARK: - 確認在幹嘛
+    
     @IBAction func chooseStoreCondition(_ sender: UISegmentedControl) {
         //當savedItems為nil，則其他的選項都會顯示為登入物品；若savedItems不為空，但其他選項剛好沒有，則其他的選項會呈現空白
         selectShowedItem()
