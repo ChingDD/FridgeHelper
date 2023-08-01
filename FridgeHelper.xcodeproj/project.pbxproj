@@ -48,6 +48,7 @@
 		FC68432A2A513B9000BD3BBE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FC88FAAC2A611CAC0000E420 /* SortMethod.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SortMethod.swift; sourceTree = "<group>"; };
 		FCAC1DB62A66856400997A41 /* LunchingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunchingViewController.swift; sourceTree = "<group>"; };
+		FCC8E3442A7748F80046FDF2 /* FridgeHelper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FridgeHelper.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -116,6 +117,7 @@
 		FC68431B2A513B8E00BD3BBE /* FridgeHelper */ = {
 			isa = PBXGroup;
 			children = (
+				FCC8E3442A7748F80046FDF2 /* FridgeHelper.entitlements */,
 				FC6480862A5EE35C00D59DC8 /* Model */,
 				FC6480872A5EE39700D59DC8 /* View */,
 				FC6480882A5EE3B400D59DC8 /* Controller */,
@@ -357,6 +359,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FridgeHelper/FridgeHelper.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = RX5VY4RSZS;
@@ -391,6 +394,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FridgeHelper/FridgeHelper.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = RX5VY4RSZS;
