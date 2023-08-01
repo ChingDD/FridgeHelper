@@ -19,6 +19,7 @@ class EditViewController: UIViewController {
     
     var item:Item?
     var tags:[String]? = ["未選擇"]
+    let defaultTags = ["蔬菜","水果","肉類","魚類"]
     var selectedTagIndex:Int = 0
     var pickView = UIPickerView()
     var datePicker = UIDatePicker()
@@ -57,6 +58,8 @@ class EditViewController: UIViewController {
         let fetchTags = TagController.shared.fetchTags()
         if let fetchTags{
             tags = tags! + fetchTags
+        }else{
+            tags = tags! + defaultTags
         }
         itemImageView.layer.borderWidth = 5
         itemImageView.layer.borderColor = UIColor(named: "Color")?.cgColor

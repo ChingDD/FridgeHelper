@@ -49,7 +49,7 @@ class TagTableViewController: UITableViewController{
             textField.delegate = self
         }
         
-        //MARK: - 待修正會輸入空格
+        
         let OkAction = UIAlertAction(title: "確認", style: .default){_ in
             if let tag = alertController.textFields?.first?.text,
                alertController.textFields?.first?.text?.isEmpty == false {
