@@ -81,8 +81,9 @@ class MainTableViewController: UITableViewController {
         let url = URL.documentsDirectory.appending(path: "items")
         print("url:\(url)")
         if let itemData = try? Data(contentsOf: url){
-            
+            //解碼使用者儲存的item的Data
             savedItems = try! JSONDecoder().decode([Item].self, from: itemData)
+            //陣列屬於值型別，因此是直接複製savedItems的內容到變數showedItems
             showedItems = savedItems
             
         }else{
