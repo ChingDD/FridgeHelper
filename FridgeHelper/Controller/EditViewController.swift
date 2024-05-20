@@ -55,7 +55,7 @@ class EditViewController: UIViewController {
         
         //更新UI介面
         updateUI()
-        let fetchTags = TagController.shared.fetchTags()
+        let fetchTags = TagMgr.shared.fetchTags()
         if let fetchTags{
             tags = tags! + fetchTags
         }else{

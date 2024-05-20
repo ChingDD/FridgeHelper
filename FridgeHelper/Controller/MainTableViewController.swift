@@ -20,34 +20,16 @@ class MainTableViewController: UITableViewController {
     @IBOutlet weak var expiredAmounts: UILabel!
     
     
-    //物品
-    var showedItems:[Item]?
+    //viewModel
+    var itemViewModel = ItemViewModel()
+    var tagViewModel = TagViewModel()
+    var sortViewModel = SortViewModel()
+    var segmentationControlViewModel = SegmentationControlViewModel()
+    var searchControlViewModel = SearchControlViewModel()
     
-    var savedItems:[Item]?{
-        didSet{
-            if let savedItems{
-                Item.saveItems(savedItems)
-                print("savedItems已更新")
-            }else{
-                let url = URL.documentsDirectory.appending(path: "items")
-                let fileManager = FileManager.default
-                do{
-                    try fileManager.removeItem(at: url)
-                }catch{
-                    print("items移除失敗")
-                }
-            }
-        }
-    }
-    
-    
-    var expiredItems:[Item]?
-
-    //接收第二頁傳過來的item
-    var item:Item?
     //儲存的tag
-    var tags:[String]?
-    let defaultTags = ["蔬菜","水果","肉類","魚類"]
+//    var tags:[String]?
+//    let defaultTags = ["蔬菜","水果","肉類","魚類"]
     //標籤篩選器
     var isTagSelectorOn:Bool = false{
         didSet{
@@ -62,12 +44,9 @@ class MainTableViewController: UITableViewController {
             print("isCellSelected：\(isCellSelected)")
         }
     }
-    //目前篩選器的選擇
-    var currentSelector = SortMethod.取消
     
-    //搜尋列
-    var searchingItems:[Item]?
-    var keyword = ""
+    var triggerCountBtnTimer: Timer?
+    var canSaveItem: Bool = false
     
     //MARK: - viewController life cycle
     override func viewDidLoad() {
@@ -77,134 +56,114 @@ class MainTableViewController: UITableViewController {
         navigationItem.searchController = searchController
         searchController.searchResultsUpdater = self
         
-        //讀取存在Document資料夾的items
-        let url = URL.documentsDirectory.appending(path: "items")
-        print("url:\(url)")
-        if let itemData = try? Data(contentsOf: url){
-            //解碼使用者儲存的item的Data
-            savedItems = try! JSONDecoder().decode([Item].self, from: itemData)
-            //陣列屬於值型別，因此是直接複製savedItems的內容到變數showedItems
-            showedItems = savedItems
-            
-        }else{
-            print("目前無items的儲存檔案")
-        }
-        
         //改變segmentControl UI
         storeConditionSegmentControl.setTitleTextAttributes([NSAttributedString.Key.foregroundColor:UIColor(named: "Color6")!], for: .selected)
         storeConditionSegmentControl.setTitleTextAttributes([NSAttributedString.Key.foregroundColor:UIColor(named: "Color7")!], for: .normal)
+        
         //篩選按鈕加入menu
         sortItemBtn.menu = setSortMethodMenu()
         sortItemBtn.showsMenuAsPrimaryAction = true
+       
         //導航列的title
         title = "FridgeHelper"
+        
         //將過期數量的label設成isHidden
-        expiredAmounts.isHidden = true
+//        expiredAmounts.isHidden = itemViewModel.isHideExpireLabel
+        
+        //MARK: - Bind
+        //sort
+        sortViewModel.sortOptionObservor.bind { _ in
+            self.updateShowedItems()
+        }
+        
+        //tag
+        tagViewModel.chosenTagObservor.bind { tag in
+            self.updateShowedItems()
+        }
+        
+        tagViewModel.tagsObservor.bind { tags in
+            self.tagFilterBtn.menu = self.setTagPopUpMenu(tags: self.tagViewModel.tagsObservor.value)
+            self.updateCurrentTagUI(tag: self.tagViewModel.chosenTagObservor.value)
+        }
+        
+        //item
+        itemViewModel.savedItemsObservor.bind { items in
+            self.updateShowedItems()
+            self.updateExpiredItems()
+            print("@save Items 已更新")
+        }
+        
+        itemViewModel.expiredItemObservor.bind { items in
+            self.expiredAmounts.isHidden = (items != nil) ? false : true
+            self.expiredAmounts.text = (items != nil) ? "\(items!.count)" : "0"
+        }
+        
+        itemViewModel.showedItemsObservor.bind { items in
+            self.tableView.reloadData()
+        }
+        
+        //keyword
+        searchControlViewModel.keywordObservor.bind { keyword in
+            self.updateShowedItems()
+        }
+        
+        //segmentation control
+        segmentationControlViewModel.indexObservor.bind { index in
+            self.updateShowedItems()
+        }
     }
 
     override func viewWillAppear(_ animated: Bool) {
         //讀取存在Document資料夾的tags
         //app一安裝時是沒存資料的，所以抓出來一定是nil
         //但如果後來刪光，資料都是存空字串
-        tags = TagController.shared.fetchTags()
-        //判斷是真的有東西還是空字串
-        if let tags{
-            //將讀出來的資料存進要被辨識的變數tag
-            self.tags = tags
-            //加入Menu
-            //這個函式會判斷，如果有是真的有存資料，則會把資料都變成UIAction後，再插入一個Cancel的UIAction後回傳menu
-            //如果是空字串，則會回傳"尚未建立標籤"的menu(不會插入Cancel的UIAction)
-            let menu = setTagPopUpMenu(tags: tags)
-            tagFilterBtn.menu = menu
-            //更新勾選狀態，因為畫面出現都會以cancel預設打勾，這裡要辨別剛剛是點選哪個tag，讓畫面出現時使正確的tag打勾
-            TagController.shared.updateClickUI(tagFilterBtn, currentTag: currentTag)
-        }else{
-            //如果tags讀出來是nil，表示使用者剛安裝這個App，因此會顯示預設的tag給使用者
-            tags = defaultTags
-            //加入Menu
-            let menu = setTagPopUpMenu(tags: tags)
-            tagFilterBtn.menu = menu
-            //備註：這段else只會跑一次，因為使用者刪光，也會變空字串，怎樣都不會跑到tag是nil的這段
-        }
+//        tags = TagController.shared.fetchTags()
+        tagViewModel.fetchedTags()
+        //抓出有過期的物品
+        itemViewModel.fetchExpiredItems()
         
+        //判斷是真的有東西還是空字串
+//        if let tags{
+//            //將讀出來的資料存進要被辨識的變數tag
+//            self.tags = tags
+//            //加入Menu
+//            //這個函式會判斷，如果有是真的有存資料，則會把資料都變成UIAction後，再插入一個Cancel的UIAction後回傳menu
+//            //如果是空字串，則會回傳"尚未建立標籤"的menu(不會插入Cancel的UIAction)
+//            let menu = setTagPopUpMenu(tags: tags)
+//            tagFilterBtn.menu = menu
+//            //更新勾選狀態，因為畫面出現都會以cancel預設打勾，這裡要辨別剛剛是點選哪個tag，讓畫面出現時使正確的tag打勾
+//            TagController.shared.updateClickUI(tagFilterBtn, currentTag: currentTag)
+//        }else{
+//            //如果tags讀出來是nil，表示使用者剛安裝這個App，因此會顯示預設的tag給使用者
+//            tags = defaultTags
+//            //加入Menu
+//            let menu = setTagPopUpMenu(tags: tags)
+//            tagFilterBtn.menu = menu
+//            //備註：這段else只會跑一次，因為使用者刪光，也會變空字串，怎樣都不會跑到tag是nil的這段
+//        }
         
         //點了btn才會有反應
         tagFilterBtn.showsMenuAsPrimaryAction = true
         //取消cell被選擇的狀態
         isCellSelected = false
-        
-        //抓出有過期的物品
-        expiredItems = savedItems?.filter({
-          $0.expiryDate.timeIntervalSinceNow <= 259200
-        })
-        
-        //如果過濾完結果是空字串，就設回nil，否則就顯示警示Label個數
-        if let expiredItems{
-            if expiredItems.isEmpty{
-                expiredAmounts.isHidden = true
-                self.expiredItems = nil
-            }else{
-                expiredAmounts.isHidden = false
-                expiredAmounts.text = "\(expiredItems.count)"
-            }
-        }
-
-        
     }
     
     //MARK: - 自定義function
-    
-    
-    func searchKeywords(_ inputText:String)->[Item]?{
-        if !inputText.isEmpty{
-            let result = showedItems?.filter({ $0.name.contains(inputText) })
-            return result
-        }else{
-            return showedItems
-        }
+    //MARK: - 應該改成看需要update哪個參數就update該參數就好，不要全部參數都update
+    fileprivate func updateShowedItems() {
+        itemViewModel.updateShowedItems(
+            SegmentControllerIndex: segmentationControlViewModel.indexObservor.value,
+            sortOption: sortViewModel.sortOptionObservor.value,
+            tag: tagViewModel.chosenTagObservor.value,
+            keyword: searchControlViewModel.keywordObservor.value )
     }
     
-    func selectedTagItems()->[Item]?{
-        
-        if isTagSelectorOn{
-            let selectedTagItems = showedItems?.filter({ $0.tag == currentTag})
-            return selectedTagItems
-        }else{
-            return showedItems
-        }
+    func updateExpiredItems() {
+        itemViewModel.fetchExpiredItems()
     }
-    
-    func selectShowedItem(){
-        switch storeConditionSegmentControl.selectedSegmentIndex{
-        case 0:
-            showedItems = savedItems
-            showedItems = currentSelector.sortShowedItems(showedItems)
-            showedItems = searchKeywords(keyword)
-            showedItems = selectedTagItems()
-        case 1:
-            showedItems = savedItems?.filter { $0.storeCondition==0 }
-            showedItems = currentSelector.sortShowedItems(showedItems)
-            showedItems = searchKeywords(keyword)
-            showedItems = selectedTagItems()
-        case 2:
-            showedItems = savedItems?.filter { $0.storeCondition==1 }
-            showedItems = currentSelector.sortShowedItems(showedItems)
-            showedItems = searchKeywords(keyword)
-            showedItems = selectedTagItems()
-        case 3:
-            showedItems = savedItems?.filter { $0.storeCondition==2 }
-            showedItems = currentSelector.sortShowedItems(showedItems)
-            showedItems = searchKeywords(keyword)
-            showedItems = selectedTagItems()
-        default:
-            break
-        }
-    }
-    
-    
     
     //建立標籤按鈕
-    func setTagPopUpMenu(tags:[String]?)->UIMenu{
+    func setTagPopUpMenu(tags:[String]?)->UIMenu {
         //如果tags是nil，則顯示尚未建立標籤的UIAction
         guard let tags, !tags.isEmpty else {
             let noTagBtn = UIAction(title: "尚未建立標籤") { _ in
@@ -218,24 +177,15 @@ class MainTableViewController: UITableViewController {
         //用map將[String]變成[UIAction]
         var tagBtns = tags.map { tag in
             //建立UIAction
-            let tagBtn = UIAction(title: tag) {[self] _ in
-                //選擇按鈕後可以就目前的segment做篩選
-                isTagSelectorOn = true
-                currentTag = tag
-                print("currentTag:\(String(describing: currentTag))")
-                selectShowedItem()
-                tableView.reloadData()
+            let tagBtn = UIAction(title: tag) { [self] _ in
+                tagViewModel.setCurrentTag(tag: tag)
             }
             return tagBtn
         }
         //取消標籤按鈕
         //cancel的按鈕在畫面出現時會預設被勾起來
         let cancelAction = UIAction(title: "取消標籤選擇",state: .on) {[self] _ in
-            print( "取消標籤")
-            isTagSelectorOn = false
-            currentTag = nil
-            selectShowedItem()
-            tableView.reloadData()
+            tagViewModel.setCurrentTag(tag: nil)
         }
         
         //將tagBtns加入取消鈕
@@ -246,34 +196,25 @@ class MainTableViewController: UITableViewController {
     }
     
     //建立篩選按鈕
-    func setSortMethodMenu()->UIMenu{
+    func setSortMethodMenu() -> UIMenu {
         let cancelBtn = UIAction(title: "取消", state: .on) {[self]_ in
             //因為selectShowedItem()會判斷currentSelector狀況，所以要先改currentSelector狀態，才能reloadData
-            currentSelector = SortMethod.取消
-            selectShowedItem()
-            tableView.reloadData()
+            sortViewModel.setSortOptions(option: .取消)
         }
         let sortBtn1 =  UIAction(title: SortMethod.時間排序遠到近.rawValue) {[self]_ in
-            currentSelector = SortMethod.時間排序遠到近
-            selectShowedItem()
-            tableView.reloadData()
+            sortViewModel.setSortOptions(option: .時間排序遠到近)
         }
         let sortBtn2 =  UIAction(title: SortMethod.時間排序近到遠.rawValue) {[self]_ in
-            currentSelector = SortMethod.時間排序近到遠
-            selectShowedItem()
-            tableView.reloadData()
+            sortViewModel.setSortOptions(option: .時間排序近到遠)
         }
         let sortBtn3 =  UIAction(title: SortMethod.剩餘數量多到少.rawValue) {[self]_ in
-            currentSelector = SortMethod.剩餘數量多到少
-            selectShowedItem()
-            tableView.reloadData()
+            sortViewModel.setSortOptions(option: .剩餘數量多到少)
         }
         let sortBtn4 =  UIAction(title: SortMethod.剩餘數量少到多.rawValue) {[self]_ in
-            currentSelector = SortMethod.剩餘數量少到多
-            selectShowedItem()
-            tableView.reloadData()
+            sortViewModel.setSortOptions(option: .剩餘數量少到多)
         }
         let menu = UIMenu(title: "分類", options: .singleSelection, children: [cancelBtn,sortBtn1,sortBtn2,sortBtn3,sortBtn4])
+        
         return menu
     }
     
@@ -283,10 +224,10 @@ class MainTableViewController: UITableViewController {
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         print("跑prepare")
         //修改資料時，會走這邊把選到的item傳下一頁顯示
-        if isCellSelected{
+        if isCellSelected {
             guard let index = tableView.indexPathForSelectedRow?.section, let controller = segue.destination as? EditViewController else {return}
             print("跑到prepare裡的indexPathForSelectedRow")
-            controller.item = showedItems?[index]
+            controller.item = itemViewModel.showedItemsObservor.value?[index]
         }
     }
     
@@ -304,24 +245,18 @@ class MainTableViewController: UITableViewController {
             print("進入新增區段")
             //如果已有建立的物品，就更改儲存總物品的內容
             print("已建立物品")
-            if savedItems?.isEmpty == false{
-                savedItems?.insert(controller.item!, at: 0)
-                print("savedItems:\(String(describing: savedItems))")
-                print("showedItems:\(String(describing: showedItems))")
-                //即時更新在不同儲存條件下的物品
-                selectShowedItem()
-                
-            }else{
+            var newSavedItems: [Item] = []
+            if let savedItems = itemViewModel.savedItemsObservor.value {
+                newSavedItems = savedItems
+                newSavedItems.insert(controller.item!, at: 0)
+               
+            } else {
                 //如果還沒建立物品
                 print("未建立物品")
-                savedItems = [controller.item!]
-                //即時更新在不同儲存條件下的物品
-                selectShowedItem()
-                print("savedItems:\(String(describing: savedItems))")
-                print("showedItems:\(String(describing: showedItems))")
+                newSavedItems = [controller.item!]
             }
-            tableView.reloadData()
-            
+            itemViewModel.updateSavedItems(items: newSavedItems)
+
         }else{
             print("進入修改區段")
             //要是修改，表示是點cell到下一頁，則indexPathForSelectedRow會呈現點選狀態，就不是nil，因此會跑這段
@@ -329,18 +264,8 @@ class MainTableViewController: UITableViewController {
             
             //利用index找到showedItems的裡的物品，在尚未更新showedItems前先把該物品讀出來，然後藉由name比對savedItems來得到該物品在savedItems裡的indexPath
             //得到後移除savedItems裡的該物品，再把剛剛傳過來的新物品插入
-            
-            
-            if let savedItems{
-
-                if let chosenItemIndex = savedItems.firstIndex(where:{ $0.name == showedItems?[index].name && $0.expiryDate == showedItems?[index].expiryDate }){
-
-                    self.savedItems?.remove(at: chosenItemIndex)
-                    self.savedItems?.insert(controller.item!, at: chosenItemIndex)
-
-                }
-
-            }
+            //MARK: - 可以改用TimeStamp來分辨物品是不是同一個
+            itemViewModel.updateItemInfo(showedItemIndex: index, item: controller.item!)
             
             /*
              要是物品有相同名字，這段程式碼會篩不到正確的物品
@@ -355,8 +280,6 @@ class MainTableViewController: UITableViewController {
             
             //更改完savedItems後再更改showedItems的資訊
             //showedItems?[index] = controller.item! -> bug：要是更換儲存條件，還是會出現仍在原儲存條件的table上
-            selectShowedItem()
-            tableView.reloadData()
             /*更新表格
              如果是更新原cell上面的數量或資訊，可以用reloadRows
              如果是更新item的儲存條件，導致cell不存在當前頁面，則使用reloadRows會報錯，因為reloadRows是重整當前存在的頁面
@@ -377,18 +300,22 @@ class MainTableViewController: UITableViewController {
     
     @IBAction func chooseStoreCondition(_ sender: UISegmentedControl) {
         //當savedItems為nil，則其他的選項都會顯示為登入物品；若savedItems不為空，但其他選項剛好沒有，則其他的選項會呈現空白
-        selectShowedItem()
-        tableView.reloadData()
+//        selectShowedItem()
+//        itemViewModel.selectShowedItem(SegmentControllerIndex: sender.selectedSegmentIndex, sortOption: sortOptionObservor.value, tag: tag)
+//        tableView.reloadData()
+        segmentationControlViewModel.setIndex(index: sender.selectedSegmentIndex)
     }
 
     @IBAction func changeAmount(_ sender: UIButton) {
         
+        stopTriggerCountBtnTimer()
+
         let point = sender.convert(CGPoint.zero, to: tableView)
         
         guard let indexPath = tableView.indexPathForRow(at: point) else {return}
         
-        var number = showedItems![indexPath.section].number
-        
+        var showedItem = itemViewModel.showedItemsObservor.value![indexPath.section]
+        var number = showedItem.number
         switch sender.tag{
         case 0:
              number += 1
@@ -398,37 +325,66 @@ class MainTableViewController: UITableViewController {
             }else{
                 number -= 1
             }
-        default:break
+        default: break
         }
         
     
         //回改item數量的Label
         let cell = tableView.cellForRow(at: indexPath) as! ItemTableViewCell
         cell.numberLabel.text = "\(number)"
-        
-        
+
         //回改item的數量
-        if let chosenItemIndex = savedItems?.firstIndex(where:{ $0.name == showedItems?[indexPath.section].name && $0.expiryDate == showedItems?[indexPath.section].expiryDate }){
-
-            self.showedItems?[indexPath.section].number = number
-            self.savedItems?[chosenItemIndex].number = number
-
-        }
+        let newItem = {
+            showedItem.number = number
+            return showedItem
+        }()
         
+        triggerCountBtnTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false, block: { _ in
+            self.itemViewModel.updateItemInfo(showedItemIndex: indexPath.section, item: newItem)
+            self.stopTriggerCountBtnTimer()
+        })
+        
+//        if let chosenItemIndex = savedItems?.firstIndex(where:{ $0.name == showedItems?[indexPath.section].name && $0.expiryDate == showedItems?[indexPath.section].expiryDate }){
+//
+//            self.showedItems?[indexPath.section].number = number
+//            self.savedItems?[chosenItemIndex].number = number
+//
+//        }
+//        itemViewModel.updateItemInfo(showedItemIndex: indexPath.section, item: newItem)
+
         tableView.reloadRows(at: [indexPath], with: .none)
     }
     
+    func stopTriggerCountBtnTimer() {
+        triggerCountBtnTimer?.invalidate()
+        triggerCountBtnTimer = nil
+        canSaveItem = false
+    }
     
+    func startTriggerCountBtnTimer() {
+        triggerCountBtnTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false, block: { _ in
+            self.canSaveItem = true
+            self.stopTriggerCountBtnTimer()
+        })
+    }
     
-    
-    
-    
+    fileprivate func updateCurrentTagUI(tag: String?) {
+        guard let tag else { return }
+        
+        self.tagFilterBtn.menu?.children.forEach {
+            let tagAction = $0 as! UIAction
+            if tagAction.title == tag {
+                tagAction.state = .on
+            }
+        }
+        
+    }
     
     // MARK: - Table view data source
 
     override func numberOfSections(in tableView: UITableView) -> Int {
       
-            let number = showedItems?.count ?? 1
+        let number = itemViewModel.showedItemsObservor.value?.count ?? 1
             print("showedItems的Section:\(number)")
             return number
      
@@ -449,11 +405,11 @@ class MainTableViewController: UITableViewController {
          Thread 1: "Attempted to dequeue multiple cells for the same index path, which is not allowed. If you really need to dequeue more cells than the table view is requesting, use the -dequeueReusableCellWithIdentifier: method (without an index path). Cell identifier: ItemTableViewCell, index path: <NSIndexPath: 0x9b86a3611d9e14b6> {length = 2, path = 0 - 0}"
          */
         
-        var itemcell:ItemTableViewCell
         
         
-        if let showedItems{
-            itemcell = tableView.dequeueReusableCell(withIdentifier: "ItemTableViewCell", for: indexPath) as! ItemTableViewCell
+        
+        if let showedItems = itemViewModel.showedItemsObservor.value {
+            var itemcell = tableView.dequeueReusableCell(withIdentifier: "ItemTableViewCell", for: indexPath) as! ItemTableViewCell
             let showedItem = showedItems[indexPath.section]
             //日期設定
             let itemExpiredDate = showedItem.expiryDate
@@ -486,7 +442,7 @@ class MainTableViewController: UITableViewController {
             
             return itemcell
             
-        }else{
+        } else {
             let noItemcell = tableView.dequeueReusableCell(withIdentifier: "NoItemTableViewCell", for: indexPath)
             
             return noItemcell
@@ -535,51 +491,47 @@ class MainTableViewController: UITableViewController {
             in
 
             //刪除資料後，把刪除的資料儲存
-            let removedItem = showedItems!.remove(at: indexPath.section)
-            
+//            let removedItem = showedItems!.remove(at: indexPath.section)
+            itemViewModel.removeItem(showedItemIndex: indexPath.section)
             //  如果items已經空了，就reloadData就好，不然用deleteSection的話會報錯
-            if showedItems!.isEmpty{
-                showedItems = nil
-                tableView.reloadData()
                 
-            }else{
+            
                 //移除表格
                 //寫deleteRows會報錯，因為我的表格是一個物品代表一個section，此時item減少，section也會減少，但這個func刪掉row後原本的section仍在，故當他偵測到items減少，section數量卻沒變時會報錯
                 //tableView.deleteRows(at: [indexPath], with: .fade) -> 會報錯
-                tableView.deleteSections(IndexSet(integer: indexPath.section), with: .fade)
-            }
-        
+//                tableView.deleteSections(IndexSet(integer: indexPath.section), with: .fade)
             //回改原儲存資料
-            if let chosenItemIndex = savedItems?.firstIndex(where:{ $0.name == removedItem.name && $0.expiryDate == removedItem.expiryDate }){
-
-                self.savedItems?.remove(at: chosenItemIndex)
-                //刪到光後會變空陣列，不是nil，所以可以大膽強制拆封
-                if self.savedItems!.isEmpty {self.savedItems = nil}
-            }
+//            if let chosenItemIndex = savedItems?.firstIndex(where:{ $0.name == removedItem.name && $0.expiryDate == removedItem.expiryDate }){
+//
+//                self.savedItems?.remove(at: chosenItemIndex)
+//                //刪到光後會變空陣列，不是nil，所以可以大膽強制拆封
+//                if self.savedItems!.isEmpty {self.savedItems = nil}
+//            }
             
             
        
             
             //若刪除的資料是過期的物品，則要更新過期物品的label數量
+            itemViewModel.fetchExpiredItems()
             //step1. 先看expiredItems裡是否有移除的物品，有的話就篩出來
-            if let removedExpiredItemIndex = expiredItems?.firstIndex(where: { $0.name == removedItem.name && $0.expiryDate == removedItem.expiryDate }){
-                
-                //step2. 若有篩到，就刪除過期物品裡的東西
-                expiredItems?.remove(at: removedExpiredItemIndex)
-                //step3. 刪完後，可能是空陣列或還有東西，所以要考慮兩種可能
-                if let expiredItems{
-                    //空陣列會進來這段
-                    if expiredItems.isEmpty{
-                        self.expiredItems = nil
-                        expiredAmounts.isHidden = true
-                    }else{
-                        //真的有篩到東西
-                        expiredAmounts.text = "\(expiredItems.count)"
-                    }
-                }
-
-                
-            }
+//            if let removedExpiredItemIndex = expiredItems?.firstIndex(where: { $0.name == removedItem.name && $0.expiryDate == removedItem.expiryDate }){
+//                
+//                //step2. 若有篩到，就刪除過期物品裡的東西
+//                expiredItems?.remove(at: removedExpiredItemIndex)
+//                //step3. 刪完後，可能是空陣列或還有東西，所以要考慮兩種可能
+//                if let expiredItems{
+//                    //空陣列會進來這段
+//                    if expiredItems.isEmpty{
+//                        self.expiredItems = nil
+//                        expiredAmounts.isHidden = true
+//                    }else{
+//                        //真的有篩到東西
+//                        expiredAmounts.text = "\(expiredItems.count)"
+//                    }
+//                }
+//
+//                
+//            }
         }
         
         
@@ -646,12 +598,12 @@ class MainTableViewController: UITableViewController {
 }
 
 //MARK: protocol
-extension MainTableViewController:UISearchResultsUpdating{
+extension MainTableViewController:UISearchResultsUpdating {
     func updateSearchResults(for searchController: UISearchController) {
-        if let searchText = searchController.searchBar.text{
-            keyword = searchText
-            selectShowedItem()
-            tableView.reloadData()
+        if let searchText = searchController.searchBar.text {
+            searchControlViewModel.setKeyword(searchText)
+        } else {
+            searchControlViewModel.setKeyword(nil)
         }
     }
     

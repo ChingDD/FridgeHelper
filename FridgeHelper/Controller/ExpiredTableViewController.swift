@@ -9,6 +9,7 @@ import UIKit
 
 class ExpiredTableViewController: UITableViewController {
 
+    var itemViewModel = ItemViewModel()
     var savedItems:[Item]?
     var expiredItems:[Item]?
     var desiredWidth:CGFloat!
@@ -21,9 +22,14 @@ class ExpiredTableViewController: UITableViewController {
         super.viewDidLoad()
         print("viewDidLoad")
         title = "即將過期的食品！"
-       
+    //MARK: - Bind
+        itemViewModel.savedItemsObservor.bind { items in
+            self.itemViewModel.fetchExpiredItems()
+        }
 
-        
+        itemViewModel.expiredItemObservor.bind { items in
+            self.tableView.reloadData()
+        }
         
     }
 
@@ -57,20 +63,21 @@ class ExpiredTableViewController: UITableViewController {
         }
        
         //更新顯示的物品
-        savedItems = Item.fetchItems()
-        expiredItems = savedItems?.filter({
-            //259200為三天前的秒數，表示過期日小於三天會提醒
-           $0.expiryDate.timeIntervalSinceNow <= 259200
-        })
+        itemViewModel.fetchSavedItems()
+        itemViewModel.fetchExpiredItems()
+//        expiredItems = savedItems?.filter({
+//            //259200為三天前的秒數，表示過期日小於三天會提醒
+//           $0.expiryDate.timeIntervalSinceNow <= 259200
+//        })
         //如果過濾完結果是空字串，表示沒篩到，就設回nil
-        if let expiredItems{
-            if expiredItems.isEmpty{
-                self.expiredItems = nil
-            }
-        }
+//        if let expiredItems{
+//            if expiredItems.isEmpty{
+//                self.expiredItems = nil
+//            }
+//        }
        
         
-        tableView.reloadData()
+//        tableView.reloadData()
     }
     
     
@@ -83,7 +90,7 @@ class ExpiredTableViewController: UITableViewController {
 
     override func numberOfSections(in tableView: UITableView) -> Int {
         // #warning Incomplete implementation, return the number of sections
-        return expiredItems?.count ?? 1
+        return itemViewModel.expiredItemObservor.value?.count ?? 1
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -95,11 +102,13 @@ class ExpiredTableViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         print("跑cellForRow")
         
-        if let item = expiredItems?[indexPath.section]{
+        if let item = itemViewModel.expiredItemObservor.value?[indexPath.section] {
             print("expiredItem:\(item)")
             let cell = tableView.dequeueReusableCell(withIdentifier: "ExpiredTableViewCell", for: indexPath) as! ExpiredTableViewCell
+            
             //設定cell上的元件資訊
             cell.amountsLabel.text = "\(item.number)"
+            
             //設定過期標籤
             if item.expiryDate.timeIntervalSinceNow > -(60*60*24){
                 cell.expiredDateLabel.text = dateController.share.setDateFormate(item.expiryDate)
@@ -109,8 +118,9 @@ class ExpiredTableViewController: UITableViewController {
                 cell.expiredDateLabel.text = "物品已經過期\(expiredDay)天"
                 cell.expiredDateLabel.textColor = UIColor.red
             }
+            
             //設定備註
-            if item.memo != nil{
+            if item.memo != nil {
                 cell.memoLabel.isHidden = false
                 cell.memoTitleLabel.isHidden = false
                 cell.memoLabel.text = item.memo
@@ -118,8 +128,10 @@ class ExpiredTableViewController: UITableViewController {
                 cell.memoLabel.isHidden = true
                 cell.memoTitleLabel.isHidden = true
             }
+            
             //設定名字
             cell.nameLabel.text = item.name
+            
             //設定圖片內容及高度
             if let imageData = item.image, let image = UIImage(data: imageData){
                 cell.itemImageView.image = image
