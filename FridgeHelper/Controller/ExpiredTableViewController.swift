@@ -65,19 +65,7 @@ class ExpiredTableViewController: UITableViewController {
         //更新顯示的物品
         itemViewModel.fetchSavedItems()
         itemViewModel.fetchExpiredItems()
-//        expiredItems = savedItems?.filter({
-//            //259200為三天前的秒數，表示過期日小於三天會提醒
-//           $0.expiryDate.timeIntervalSinceNow <= 259200
-//        })
-        //如果過濾完結果是空字串，表示沒篩到，就設回nil
-//        if let expiredItems{
-//            if expiredItems.isEmpty{
-//                self.expiredItems = nil
-//            }
-//        }
-       
         
-//        tableView.reloadData()
     }
     
     
@@ -111,7 +99,7 @@ class ExpiredTableViewController: UITableViewController {
             
             //設定過期標籤
             if item.expiryDate.timeIntervalSinceNow > -(60*60*24){
-                cell.expiredDateLabel.text = dateController.share.setDateFormate(item.expiryDate)
+                cell.expiredDateLabel.text = dateController.shared.setDateFormate(item.expiryDate)
                 cell.expiredDateLabel.textColor = UIColor(named: "Color6")
             }else{
                 let expiredDay = Int((-item.expiryDate.timeIntervalSinceNow)/(60*60*24))

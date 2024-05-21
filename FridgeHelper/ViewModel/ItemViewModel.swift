@@ -7,71 +7,39 @@
 
 import Foundation
 
+enum ItemModifyStatus {
+    case addItem
+    case deletItem(index: Int)
+    case modifiyItem(index: Int)
+    case filter
+    case none
+}
+
 class ItemViewModel {
     var savedItemsObservor: ObservableObject = ObservableObject<[Item]?>(value: nil)
     var expiredItemObservor: ObservableObject = ObservableObject<[Item]?>(value: nil)
     var showedItemsObservor: ObservableObject = ObservableObject<[Item]?>(value: nil)
     
-//    var showedItems: [Item]?
-//    var savedItems: [Item]? {
-//        didSet {
-//            if let savedItems {
-//                Item.saveItems(savedItems)
-//                print("savedItems已更新")
-//            } else {
-//                let url = URL.documentsDirectory.appending(path: "items")
-//                let fileManager = FileManager.default
-//                do {
-//                    try fileManager.removeItem(at: url)
-//                } catch {
-//                    print("items移除失敗")
-//                }
-//            }
-//        }
-//    }
-//    var expiredItems: [Item]?
-//    var isHideExpireLabel: Bool = true
-//    var expiredItemNumber: String = ""
+    var itemModifyStatus: ItemModifyStatus = .none
     
-    //接收第二頁傳過來的item
-    var item: Item?
-    
-    //搜尋列
-    var searchingItems:[Item]?
-    var keyword = ""
-
-
     init() {
         //讀取存在Document資料夾的items
-        savedItemsObservor.value = ItemHelper.fetchItems()
-        showedItemsObservor.value = ItemHelper.fetchItems()
+        fetchSavedItems()
+        showedItemsObservor.value = savedItemsObservor.value
     }
     
     func fetchSavedItems() {
-        let items = ItemHelper.fetchItems()
-        showedItemsObservor.value = items
+        let items = FileMgr.shared.fetchItems()
+        savedItemsObservor.value = items
     }
     
     func fetchExpiredItems() {
-//        //抓出有過期的物品
-//        let expiredItems = savedItems?.filter({
-//            $0.expiryDate.timeIntervalSinceNow <= 259200
-//        })
-//        //如果過濾完結果是空字串，就設回nil，否則就顯示警示Label個數
-//        if let expiredItems {
-//            if expiredItems.isEmpty {
-//                isHideExpireLabel = true
-//                self.expiredItems = nil
-//            } else {
-//                isHideExpireLabel = false
-//                expiredItemNumber = "\(expiredItems.count)"
-//            }
-//        }
-        let items = ItemHelper.fetchExpiredItems(savedItemsObservor.value)
+        //抓出有過期的物品
+        let items = FileMgr.shared.fetchExpiredItems(savedItemsObservor.value)
         expiredItemObservor.value = items
     }
     
-    func searchKeywords(_ inputText: String?, items: [Item]?)->[Item]? {
+    private func searchKeywords(_ inputText: String?, items: [Item]?)->[Item]? {
         guard let items else { return nil }
         guard let inputText, !inputText.isEmpty else { return items }
         
@@ -82,10 +50,9 @@ class ItemViewModel {
         } else {
             return result   //有篩到東西
         }
-        
     }
     
-    func selectedTagItems(currentTag: String? = nil, items: [Item]?) -> [Item]? {
+    private func selectedTagItems(currentTag: String? = nil, items: [Item]?) -> [Item]? {
         guard let items else { return nil }
         guard let currentTag else { return items }
         
@@ -97,13 +64,12 @@ class ItemViewModel {
         }
     }
     
-    func updateShowedItems(SegmentControllerIndex: Int,  sortOption: SortMethod, tag: String?, keyword: String?){
-        let savedItems = savedItemsObservor.value
-        var showedItems: [Item]?
-        showedItems = sortOption.sortShowedItems(savedItems)
+    func updateShowedItems(segmentControllerIndex: Int,  sortOption: SortMethod, tag: String?, keyword: String?){
+        var showedItems = savedItemsObservor.value
+        showedItems = sortOption.sortShowedItems(showedItems)
         showedItems = searchKeywords(keyword, items: showedItems)
         showedItems = selectedTagItems(currentTag: tag, items: showedItems)
-        switch SegmentControllerIndex {
+        switch segmentControllerIndex {
         case 0:
             break
         case 1:
@@ -119,7 +85,6 @@ class ItemViewModel {
         if showedItems?.isEmpty == true {
             showedItems = nil
         }
-        
         showedItemsObservor.value = showedItems
     }
     
@@ -127,26 +92,26 @@ class ItemViewModel {
         if let items {
             if items.isEmpty {
                 savedItemsObservor.value = nil
-                ItemHelper.removeItemsFile()
+                FileMgr.shared.removeItems()
             } else {
                 savedItemsObservor.value = items
                 saveItems(items: items)
             }
         } else {
             savedItemsObservor.value = nil
-            ItemHelper.removeItemsFile()
+            FileMgr.shared.removeItems()
         }
     }
     
     private func saveItems(items: [Item]) {
-        ItemHelper.saveItems(items)
+        FileMgr.shared.saveItems(items)
     }
     
     func updateItemInfo(showedItemIndex: Int, item: Item) {
         if let savedItems = savedItemsObservor.value,
            let showedItems = showedItemsObservor.value {
             var newSavesItems = savedItems
-            if let chosenItemIndex = savedItems.firstIndex(where:{ $0.name == showedItems[showedItemIndex].name && $0.expiryDate == showedItems[showedItemIndex].expiryDate }){
+            if let chosenItemIndex = savedItems.firstIndex(where:{ $0.timeStamp == showedItems[showedItemIndex].timeStamp }){
                 newSavesItems[chosenItemIndex] = item
                 updateSavedItems(items: newSavesItems)
             }
@@ -157,10 +122,26 @@ class ItemViewModel {
         if var savedItems = savedItemsObservor.value,
            var showedItems = showedItemsObservor.value {
             let removedItem = showedItems.remove(at: showedItemIndex)
-            if let chosenItemIndex = savedItems.firstIndex(where:{ $0.name == removedItem.name && $0.expiryDate == removedItem.expiryDate }){
+            if let chosenItemIndex = savedItems.firstIndex(where:{ $0.timeStamp == removedItem.timeStamp }) {
                 savedItems.remove(at: chosenItemIndex)
+                itemModifyStatus = .deletItem(index: showedItemIndex)
                 updateSavedItems(items: savedItems)
             }
         }
     }
+    
+    func addItem(item: Item) {
+        var newSavedItems: [Item] = []
+        if let savedItems = savedItemsObservor.value {
+            newSavedItems = savedItems
+        }
+        newSavedItems.insert(item, at: 0)
+        itemModifyStatus = .addItem
+        updateSavedItems(items: newSavedItems)
+    }
+    
+    func resetItemStatus() {
+        itemModifyStatus = .none
+    }
+    
 }

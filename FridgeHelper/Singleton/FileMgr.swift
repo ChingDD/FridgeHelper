@@ -8,9 +8,11 @@
 import Foundation
 import UIKit
 
-class ItemHelper {
+class FileMgr {
     
-    static func saveImage(_ item: Item, image: UIImage){
+    static let shared = FileMgr()
+    
+    func saveImage(_ item: Item, image: UIImage){
         //用JPG存檔，他的Orientation才不會消失
         if let imageData = image.jpegData(compressionQuality: 1){
             
@@ -30,7 +32,7 @@ class ItemHelper {
     }
     
     //讀取照片
-    static func loadImage(_ item: Item)->UIImage?{
+    func loadImage(_ item: Item)->UIImage?{
         
         let url = URL.documentsDirectory.appending(path: item.name)
         guard let image = UIImage(contentsOfFile: url.path().removingPercentEncoding ?? "") else{ return nil }
@@ -40,7 +42,7 @@ class ItemHelper {
     
     
     //移除儲存的圖片
-    static func removeImage( _ item: Item){
+    func removeImage( _ item: Item){
         
         let url = URL.documentsDirectory.appending(path: item.name)
         let fileManager = FileManager.default
@@ -54,19 +56,21 @@ class ItemHelper {
     }
     
     //抓物品
-    static func fetchItems()->[Item]?{
+    func fetchItems()->[Item]?{
         
         let url = URL.documentsDirectory.appending(path: "items")
         print("url:\(url)")
         if let itemData = try? Data(contentsOf: url){
             let items = try! JSONDecoder().decode([Item].self, from: itemData)
+            print("Fetch Items Success")
             return items
         }
+        print("Fetch Items Fail")
         return nil
         
     }
     
-    static func fetchExpiredItems(_ savedItems: [Item]?) -> [Item]? {
+    func fetchExpiredItems(_ savedItems: [Item]?) -> [Item]? {
         //抓出有過期的物品
         let expiredItems = savedItems?.filter({
             $0.expiryDate.timeIntervalSinceNow <= 259200
@@ -84,20 +88,55 @@ class ItemHelper {
     
     
     //將item變成Data存在Document資料夾
-    static func saveItems(_ items:[Item]){
+    func saveItems(_ items:[Item]){
         
         if let itemData = try? JSONEncoder().encode(items){
             let url = URL.documentsDirectory.appending(path: "items")
             try? itemData.write(to: url)
+            print("Save Items Success")
         }
     }
     
-    static func removeItemsFile() {
+    func removeItems() {
         let url = URL.documentsDirectory.appending(path: "items")
         do {
             try FileManager.default.removeItem(at: url)
         } catch {
             print("remove items file fail")
+        }
+    }
+    
+    //Tag
+    func fetchTags()->[String]?{
+        let url = URL.documentsDirectory.appending(path: "tags")
+        do{
+            let tagsData = try Data(contentsOf: url)
+            let tags = try JSONDecoder().decode([String].self, from: tagsData)
+            return tags
+        }catch{
+            print("抓不到tags檔案")
+            return nil
+        }
+    }
+    
+    func saveTags(tags:[String]?){
+        let url = URL.documentsDirectory.appending(path: "tags")
+        let tagsData = try! JSONEncoder().encode(tags)
+        do{
+            try tagsData.write(to: url)
+            print("存tagsData成功")
+        }catch{
+            print("存取失敗")
+        }
+    }
+    
+    func removeTags() {
+        let url = URL.documentsDirectory.appending(path: "tags")
+        do {
+            try FileManager.default.removeItem(at: url)
+            print("Remove Tags File Success")
+        } catch {
+            print("Remove Tags File Fail")
         }
     }
 }

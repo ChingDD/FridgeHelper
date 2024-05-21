@@ -9,39 +9,35 @@ import UIKit
 
 class TagTableViewController: UITableViewController{
     var tagViewModel = TagViewModel()
-    let defaultTags = ["蔬菜","水果","肉類","魚類"]
-//    var tags:[String]?{
-//        didSet{
-//            print("抓資料前\(String(describing: tags))")
-//            TagMgr.shared.saveTags(tags: tags)
-//            print("抓資料後\(String(describing: tags))")
-//
-////            //當tag都刪光了，就把路徑移除
-////            if let tags, tags.isEmpty {
-////                let url = URL.documentsDirectory.appending(path: "tags")
-////                try?FileManager.default.removeItem(at: url)
-////            }
-//        }
-//    }
+    
     //優化標籤，一開始會預設肉類魚類蔬菜水果供選擇
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "標籤管理"
         
+        //MARK: - Bind
         tagViewModel.tagsObservor.bind { tags in
-            self.tableView.reloadData()
-        }
-        
-        if let savedtags = TagMgr.shared.fetchTags() {
-            //當userDefault有資料，就會以抓到的資料為主
-            tagViewModel.tagsObservor.value = savedtags
-        } else {
-            //如果使用者是自己把標籤刪光光，使標籤變空陣列，則表示他不想要預設標籤，所以就不要存defaultTag進去tags
-            //如果使用者沒有儲存標籤(一開始啟動app)，則一開始會顯示預設的，並儲存到userDefault裡
-            tagViewModel.tagsObservor.value = defaultTags
+            switch self.tagViewModel.tagModifyStatus {
+            case .deletItem(index: let index):
+                //若刪完tag後tag list還有資料，則用deleteSections
+                if let tags, !tags.isEmpty {
+                    self.tableView.deleteRows(at: [IndexPath(row: index, section: 0)], with: .fade)
+                } else {
+                    //如果tag都刪光了，就用reloadData
+                    self.tableView.reloadData()
+                }
+            default :
+                self.tableView.reloadData()
+            }
+            self.tagViewModel.resetTagModifyStatus()
         }
     }
 
+    override func viewWillAppear(_ animated: Bool) {
+        //fetch tags
+        tagViewModel.fetchedTags()
+    }
+    
     //MARK: - Target Action
     
     @IBAction func addTag(_ sender: UIBarButtonItem) {
@@ -61,7 +57,8 @@ class TagTableViewController: UITableViewController{
                     newTags = tags
                 }
                 newTags.append(tag)
-                self.setTags(tags: newTags)
+                self.tagViewModel.tagModifyStatus = .addItem
+                self.tagViewModel.updateTags(tags: newTags)
             }
             
         }
@@ -73,21 +70,14 @@ class TagTableViewController: UITableViewController{
         present(alertController, animated: true)
     }
     
-    func setTags(tags: [String]?) {
-        tagViewModel.tagsObservor.value = tags
-        TagMgr.shared.saveTags(tags: tags)
-    }
-    
     // MARK: - Table view data source
 
     override func numberOfSections(in tableView: UITableView) -> Int {
-        print("跑numberOfSections")
         return 1
     }
 
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        print("跑numberOfRowsInSection")
         if let tags = tagViewModel.tagsObservor.value, !tags.isEmpty {
             return tags.count
         }else{
@@ -98,9 +88,9 @@ class TagTableViewController: UITableViewController{
     
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        print("跑cellForRowAt")
         let tagCell = tableView.dequeueReusableCell(withIdentifier: "TagTableViewCell", for: indexPath)
         let noTagCell = tableView.dequeueReusableCell(withIdentifier: "NoTagTableViewCell", for: indexPath)
+        //如果userDefaul有存tags，而且不是nil，就return tagCell
         if let tags = tagViewModel.tagsObservor.value, !tags.isEmpty {
             tagCell.imageView?.image = UIImage(systemName: "tag.circle")
             tagCell.imageView?.tintColor = UIColor(named: "Color3")
@@ -108,7 +98,9 @@ class TagTableViewController: UITableViewController{
             return tagCell
             
         } else {
-            
+            //如果是空陣列，就return noTagCell
+            //基本上這邊不會nil，因為使用者剛安裝App時就會把default給存進去，後來就算再刪光光，也會是空陣列，而不是nil
+            //因為不是nil，所以可以防止fetchedTags時偵測到tags是nil，而把default tag存到userDefault
             noTagCell.textLabel?.text = "尚未建立標籤"
             return noTagCell
         }
@@ -137,12 +129,11 @@ class TagTableViewController: UITableViewController{
         if editingStyle == .delete {
             var newTags = tagViewModel.tagsObservor.value
             newTags?.remove(at: indexPath.row)
-            print("刪完後的tags：\(String(describing: newTags))")
             if newTags!.isEmpty{
-                setTags(tags: nil)
+                self.tagViewModel.updateTags(tags: [])
             }else{
-                tableView.deleteRows(at: [indexPath], with: .fade)
-                setTags(tags: newTags)
+                self.tagViewModel.tagModifyStatus = .deletItem(index: indexPath.section)
+                self.tagViewModel.updateTags(tags: newTags)
             }
         }
         

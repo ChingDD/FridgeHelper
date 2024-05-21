@@ -55,7 +55,7 @@ class EditViewController: UIViewController {
         
         //更新UI介面
         updateUI()
-        let fetchTags = TagMgr.shared.fetchTags()
+        let fetchTags = FileMgr.shared.fetchTags()
         if let fetchTags{
             tags = tags! + fetchTags
         }else{
@@ -105,7 +105,7 @@ class EditViewController: UIViewController {
             numberTextField.text = "\(item.number)"
             
             //日期變成字串
-            expiryDateTextField.text = dateController.share.setDateFormate(item.expiryDate)
+            expiryDateTextField.text = dateController.shared.setDateFormate(item.expiryDate)
             memoTextField.text = item.memo
             tagTextField.text = item.tag
             storeConditionSegmentControl.selectedSegmentIndex = item.storeCondition
@@ -155,7 +155,7 @@ class EditViewController: UIViewController {
    }
     
     @objc func tapDateDoneBtn(){
-        expiryDateTextField.text = dateController.share.setDateFormate(datePicker.date)
+        expiryDateTextField.text = dateController.shared.setDateFormate(datePicker.date)
         expiryDateTextField.resignFirstResponder()
    }
     
@@ -200,9 +200,7 @@ class EditViewController: UIViewController {
         let storeConditionIndex = storeConditionSegmentControl.selectedSegmentIndex
         let imageData =  itemImageView.image?.jpegData(compressionQuality: 0.5)
         
-        item = Item(name: name, number: number, expiryDate: expiryDate, storeCondition: storeConditionIndex, memo: memo, tag: tag, image: imageData)
-        //print("編輯頁item的名字：\(item?.name)")
-     
+        item = Item(name: name, number: number, expiryDate: expiryDate, storeCondition: storeConditionIndex, memo: memo, tag: tag, image: imageData, timeStamp: dateController.shared.creatItemTimeStamp())
         
         //執行segue回到上一頁
         performSegue(withIdentifier: "unwindToMain", sender: nil)
@@ -303,7 +301,7 @@ extension EditViewController:UITextFieldDelegate{
 //            datePicker.isEnabled = true
 //            view.addSubview(datePicker)
 //            print(datePicker.frame)
-            datePicker = dateController.share.createDatePicker()
+            datePicker = dateController.shared.createDatePicker()
             datePicker.frame = CGRect(x: 0, y: 0, width: view.frame.width, height: 400)
             textField.inputView = datePicker
             textField.inputAccessoryView = setDateToolBarBtn()

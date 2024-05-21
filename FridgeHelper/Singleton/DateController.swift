@@ -7,8 +7,9 @@
 
 import Foundation
 import UIKit
-class dateController{
-    static let share = dateController()
+class dateController {
+    static let shared = dateController()
+    
     let datePicker = UIDatePicker()
     func createDatePicker()->UIDatePicker{
         datePicker.datePickerMode = .date
@@ -26,12 +27,12 @@ class dateController{
     }
     
     
-    @objc func printDate(){
+    @objc func printDate() {
         //這時print出來的是倫敦的時區
-        print(datePicker.date)
+        //print(datePicker.date)
     }
     
-    func setDateFormate(_ date:Date)->String{
+    func setDateFormate(_ date:Date) -> String{
         let dateFormatter = DateFormatter()
         //呈現在textField上的字串為中文格式
         dateFormatter.locale = Locale(identifier: "zh-TW")
@@ -40,5 +41,13 @@ class dateController{
         dateFormatter.dateFormat = "YYYY/MM/dd EEEE"
         print(dateFormatter.string(from: date))
        return dateFormatter.string(from: date)
+    }
+    
+    func creatItemTimeStamp() -> String {
+        let date = Date()
+        let timeStamp = date.timeIntervalSince1970
+        let stringTimeStamp = String(timeStamp)
+        
+        return stringTimeStamp
     }
 }
