@@ -10,8 +10,6 @@ import UIKit
 class ExpiredTableViewController: UITableViewController {
 
     var itemViewModel = ItemViewModel()
-    var savedItems:[Item]?
-    var expiredItems:[Item]?
     var desiredWidth:CGFloat!
     var desiredHeight:CGFloat!
     var offSetX:CGFloat!
@@ -148,11 +146,10 @@ class ExpiredTableViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        print("heightForRowAt")
-        if let _ = expiredItems?[indexPath.section]{
+        if let _ = itemViewModel.expiredItemObservor.value?[indexPath.section] {
+            //當使用 UITableView.automaticDimension 時，UITableView 會依賴於單元格內部的自動佈局約束（Auto Layout Constraints）來決定單元格的高度。
             return UITableView.automaticDimension
         }else{
-            print("heightForRowAt:\(tableView.frame.height)")
             return tableView.frame.height
         }
     }
