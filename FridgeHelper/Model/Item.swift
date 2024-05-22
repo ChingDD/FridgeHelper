@@ -16,7 +16,7 @@ struct Item:Codable {
     var memo:String?
     var tag:String?
     var image:Data?
-    var timeStamp: String
+    var timeStamp: String?
     
     enum storeCondition:String {
         case 室溫

@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import AVFoundation
 
 class EditViewController: UIViewController {
 
@@ -174,6 +175,24 @@ class EditViewController: UIViewController {
         }
     }
     
+    private func checkCameraAuthorization(completion: @escaping (Bool) -> Void) {
+            let status = AVCaptureDevice.authorizationStatus(for: .video)
+            switch status {
+            case .notDetermined:
+                AVCaptureDevice.requestAccess(for: .video) { granted in
+                    DispatchQueue.main.async {
+                        completion(granted)
+                    }
+                }
+            case .authorized:
+                completion(true)
+            case .denied, .restricted:
+                completion(false)
+            @unknown default:
+                completion(false)
+            }
+        }
+    
     //MARK: - Target Action
     //確認送出按鈕
     @IBAction func done(_ sender: UIBarButtonItem) {
@@ -235,6 +254,26 @@ class EditViewController: UIViewController {
                 self.present(alertController, animated: true)
                 print("沒有相機")
                 return
+            }
+            
+            //偵測相機權限
+            self.checkCameraAuthorization { isAuthorized in
+                guard isAuthorized else {
+                    let alertController = UIAlertController(title: "相機權限", message: "請在設置中開啟相機權限，以便您可以記錄您購買的物品", preferredStyle: .alert)
+                    let settingsAction = UIAlertAction(title: "設置", style: .default) { _ in
+                        if let appSettings = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(appSettings, options: [:], completionHandler: nil)
+                        }
+                    }
+                    let cancelAction = UIAlertAction(title: "取消", style: .default) { _ in
+                        self.dismiss(animated: true)
+                    }
+                    alertController.addAction(settingsAction)
+                    alertController.addAction(cancelAction)
+                    self.present(alertController, animated: true)
+                    
+                    return
+                }
             }
             
             let controller = UIImagePickerController()
