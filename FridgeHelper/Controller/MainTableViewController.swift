@@ -243,8 +243,11 @@ class MainTableViewController: UITableViewController {
         
         //5. register the request
         center.add(request) { error in
-            guard error == nil else { return }
-            printInfo("send notification error")
+            guard error == nil else {
+                printInfo("Send Notification (Error:\(error))")
+                return
+            }
+            printInfo("Send Notification (Success)")
         }
 
         
