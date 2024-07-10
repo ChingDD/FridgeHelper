@@ -71,10 +71,8 @@ class EditViewController: UIViewController {
     //MARK: - 自定義function
     @objc func showKeyboard(_ notification:Notification){
         //print(notification.userInfo!.keys)
-        print("鍵盤要叫出來了")
-
         let keyboardFrame = notification.userInfo?[AnyHashable("UIKeyboardBoundsUserInfoKey")] as! CGRect
-        print("keyboardFrame:\(keyboardFrame)")
+        printInfo("keyboardFrame:\(keyboardFrame)")
         let deviceMaxY = UIScreen.main.bounds.maxY
         //該機種鍵盤以上的可見區域(固定值)
         //原本是用view的MaxY扣，但是會有bug，因為按最後一個textField後view會上升，此時的maxY會改變，本來會比maxY小的物件會變成位置比他們大，所以就會誤判而造成view上升
@@ -198,10 +196,6 @@ class EditViewController: UIViewController {
     @IBAction func done(_ sender: UIBarButtonItem) {
         
         //以下這一大段也可以寫在prepare
-        print(nameTextField.text!.isEmpty)
-        print(numberTextField.text!.isEmpty)
-        print(expiryDateTextField.text!.isEmpty)
-
         guard nameTextField.text!.isEmpty==false && numberTextField.text!.isEmpty==false && expiryDateTextField.text!.isEmpty==false else{
             let alert = UIAlertController(title: "資訊有誤", message: "名稱、數量、到期日要選擇", preferredStyle: .alert)
             let alertAction = UIAlertAction(title: "確定", style: .default)
@@ -252,7 +246,7 @@ class EditViewController: UIViewController {
                 let alertAction = UIAlertAction(title: "確定", style: .default)
                 alertController.addAction(alertAction)
                 self.present(alertController, animated: true)
-                print("沒有相機")
+                printInfo("沒有相機")
                 return
             }
             
@@ -322,12 +316,11 @@ extension EditViewController:UITextFieldDelegate{
     //這個func被點擊會呼叫，輸入字後還會再被呼叫一次
     func textFieldDidBeginEditing(_ textField: UITextField) {
         
-        print("textFieldDidBeginEditing")
+        printInfo("textFieldDidBeginEditing")
         
         //將元件座標相對位置轉成View
         let convertedPoint = textField.convert(textField.frame.origin, to: view)
         currentObjectButtonY = convertedPoint.y + textField.frame.height
-        print("元件的位置：\(currentObjectButtonY)")
         //如果textField是下列的情況，則替換鍵盤內容
         if textField.tag == 3{
             textField.inputView = pickView

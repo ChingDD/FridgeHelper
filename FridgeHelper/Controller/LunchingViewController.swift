@@ -63,7 +63,7 @@ class LunchingViewController: UIViewController {
                 rotationAnimate.toValue = Double.pi*2
                 rotationAnimate.duration = 0.8
                 imageView.layer.add(rotationAnimate, forKey: nil)
-                print("第一段動畫做完了")
+                printInfo("第一段動畫做完了")
                 //imageView.transform的方法無法轉360度
                 //imageView.transform = CGAffineTransform.identity.rotated(by: <#T##CGFloat#>)
             } completion: { _ in
@@ -71,7 +71,7 @@ class LunchingViewController: UIViewController {
                 //因為馬上就會跳到第二段動畫，所以第二段動畫要先delay，等第一段的圖層動畫跑完才會剛好接上第二段的動畫
                 UIViewPropertyAnimator.runningPropertyAnimator(withDuration: 1.0, delay: 0.8, options: .curveEaseInOut) {
                     label.alpha = 1
-                    print("第二段動畫做完了")
+                    printInfo("第二段動畫做完了")
                 } completion: { _ in
                     //transition用在畫面轉場用, with參數表示container View
                     UIView.transition(with: self.view.window!, duration: 1, options: .transitionCrossDissolve, animations: {
@@ -80,7 +80,7 @@ class LunchingViewController: UIViewController {
                         UIView.setAnimationsEnabled(false)
                         self.view.window?.rootViewController = controller
                         UIView.setAnimationsEnabled(true)
-                        print("第三段動畫做完了")
+                        printInfo("第三段動畫做完了")
                     }, completion: nil)
                     
                 }

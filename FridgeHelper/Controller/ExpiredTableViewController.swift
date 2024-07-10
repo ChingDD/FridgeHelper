@@ -18,7 +18,7 @@ class ExpiredTableViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        print("viewDidLoad")
+        printInfo("viewDidLoad")
         title = "即將過期的食品！"
     //MARK: - Bind
         itemViewModel.savedItemsObservor.bind { items in
@@ -42,7 +42,7 @@ class ExpiredTableViewController: UITableViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        print("viewWillAppear")
+        printInfo("viewWillAppear")
         
         //判斷畫面有無消失，沒消失的話就不會再更新畫面的呈現
         if isViewDissapear == true{
@@ -86,10 +86,9 @@ class ExpiredTableViewController: UITableViewController {
 
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        print("跑cellForRow")
+        printInfo("cellForRow")
         
         if let item = itemViewModel.expiredItemObservor.value?[indexPath.section] {
-            print("expiredItem:\(item)")
             let cell = tableView.dequeueReusableCell(withIdentifier: "ExpiredTableViewCell", for: indexPath) as! ExpiredTableViewCell
             
             //設定cell上的元件資訊

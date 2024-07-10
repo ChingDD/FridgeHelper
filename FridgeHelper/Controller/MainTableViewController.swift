@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import UserNotifications
 
 class MainTableViewController: UITableViewController {
     //為什麼IBOulet會有weak? 因為這些元件都是view的subView，所以他們被存在subView的array裡，已經有連結指向他們。所以這邊可以使用weak。
@@ -28,11 +29,7 @@ class MainTableViewController: UITableViewController {
     var searchControlViewModel = SearchControlViewModel()
     
     //目前cell被選到的狀態
-    var isCellSelected = false{
-        didSet{
-            print("isCellSelected：\(isCellSelected)")
-        }
-    }
+    var isCellSelected = false
     
     //for count btn
     var triggerCountBtnTimer: Timer?
@@ -77,7 +74,7 @@ class MainTableViewController: UITableViewController {
         itemViewModel.savedItemsObservor.bind { items in
             self.updateShowedItems()
             self.updateExpiredItems()
-            print("Saved Items 已更新")
+            printInfo("Saved Items 已更新")
         }
         
         itemViewModel.expiredItemObservor.bind { items in
@@ -92,27 +89,21 @@ class MainTableViewController: UITableViewController {
             case .deletItem(index: let index):
                 if let items {
                     self.tableView.deleteSections(IndexSet(integer: index), with: .fade)
-                    print("deletItem reloadRows")
                 } else {
                     self.tableView.reloadData()
-                    print("deletItem reloadData")
                 }
                 
             case .modifiyItem(index: let index):
                 self.tableView.reloadRows(at: [IndexPath(row: 0, section: index)], with: .automatic)
-                print("modifiyItem reloadRows")
                 
             case .filter:
                 self.tableView.reloadData()
-                print("filter reloadData")
                 
             case .addItem:
                 self.tableView.reloadData()
-                print("addItem reloadData")
                 
             case .none:
                 self.tableView.reloadData()
-                print("none reloadData")
             }
             self.itemViewModel.resetItemStatus()
         }
@@ -214,14 +205,57 @@ class MainTableViewController: UITableViewController {
         return menu
     }
     
-    
+    func setLocalNotifications() {
+        //1. ask user permission
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { granted, errors in
+            guard errors == nil else { return }
+            if !granted {
+                let controller = UIAlertController(title: "local notification permission", message: "需要打開通知權限，才能提醒是某有物品要過期", preferredStyle: .alert)
+                let okAction = UIAlertAction(title: "確認", style: .default) { _
+                    in
+                    let appSetting = URL(string: UIApplication.openSettingsURLString)
+                    UIApplication.shared.open(appSetting!)
+                }
+                let cancel = UIAlertAction(title: "取消", style: .cancel) { _ in
+                    self.dismiss(animated: true)
+                }
+                controller.addAction(okAction)
+                controller.addAction(cancel)
+            }
+        }
+        //2. creat notification content
+        let content = UNMutableNotificationContent()
+        content.title = "有快要過期的物品！"
+        content.body = "請點擊查看"
+        content.badge = 1
+        content.sound = UNNotificationSound.default
+        //3. creat trigger
+        let dateComponents = DateComponents(hour: 12, minute: 0)
+        //let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
+//        let date = Date().addingTimeInterval(2)
+//        let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        
+        //4. create request
+        let uuid = UUID().uuidString
+        let request = UNNotificationRequest(identifier: uuid, content: content, trigger: trigger)
+        
+        //5. register the request
+        center.add(request) { error in
+            guard error == nil else { return }
+            printInfo("send notification error")
+        }
+
+        
+    }
     
     //測試OK
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         //修改資料時，會走這邊把選到的item傳下一頁顯示
         if isCellSelected {
             guard let index = tableView.indexPathForSelectedRow?.section, let controller = segue.destination as? EditViewController else {
-                print("Can't Not Find Controller")
+                printInfo("Can't Not Find Controller")
                 return
             }
             controller.item = itemViewModel.showedItemsObservor.value?[index]
@@ -237,10 +271,10 @@ class MainTableViewController: UITableViewController {
         let controller = unwindSegue.source as! EditViewController
         //若是新增時，是點選新增紐，則這頁的tableViewCell不會被點選，所以indexPathForSelectedRow會是nil，那就會走第一段
         if isCellSelected == false{
-            print("進入新增區段")
+            printInfo("進入新增區段")
             itemViewModel.addItem(item: controller.item!)
         }else{
-            print("進入修改區段")
+            printInfo("進入修改區段")
             //要是修改，表示是點cell到下一頁，則indexPathForSelectedRow會呈現點選狀態，就不是nil，因此會跑這段
             let index = tableView.indexPathForSelectedRow!.section
             itemViewModel.updateItemInfo(showedItemIndex: index, item: controller.item!)

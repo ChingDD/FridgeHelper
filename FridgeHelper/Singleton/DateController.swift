@@ -35,11 +35,11 @@ class dateController {
     func setDateFormate(_ date:Date) -> String{
         let dateFormatter = DateFormatter()
         //呈現在textField上的字串為中文格式
-        dateFormatter.locale = Locale(identifier: "zh-TW")
+        //dateFormatter.locale = Locale(identifier: "zh-TW")
         //時區變成台北
-        dateFormatter.timeZone = TimeZone(identifier: "Asia/Taipei")
+        //dateFormatter.timeZone = TimeZone(identifier: "Asia/Taipei")
         dateFormatter.dateFormat = "YYYY/MM/dd EEEE"
-        print(dateFormatter.string(from: date))
+        printInfo(dateFormatter.string(from: date))
        return dateFormatter.string(from: date)
     }
     

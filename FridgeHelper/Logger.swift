@@ -7,7 +7,7 @@
 
 import Foundation
 
-func print(_ message: Any..., fileName: String = #file, functionName: String = #function, lineNumber: UInt = #line) {
+func printInfo(_ message: Any..., fileName: String = #file, functionName: String = #function, lineNumber: UInt = #line) {
     
     var messageString = ""
     
@@ -20,5 +20,5 @@ func print(_ message: Any..., fileName: String = #file, functionName: String = #
     messageString = messageString + fileName + " -> "
     messageString = messageString + functionName + ": \(lineNumber)"
     
-    print("@@@" + messageString)
+    print(messageString)
 }
