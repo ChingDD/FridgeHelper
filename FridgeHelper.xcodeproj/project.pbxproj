@@ -17,6 +17,7 @@
 		FC4B84F92A517C25004E926B /* EditViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC4B84F82A517C25004E926B /* EditViewController.swift */; };
 		FC4B84FB2A51A850004E926B /* TagTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC4B84FA2A51A850004E926B /* TagTableViewController.swift */; };
 		FC53326C2BF92FB700815CC3 /* segmentationControllerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC53326B2BF92FB700815CC3 /* segmentationControllerViewModel.swift */; };
+		FC5443BA2C3F574700251622 /* ObservableObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC5443B92C3F574700251622 /* ObservableObject.swift */; };
 		FC57613F2A57F94400DEBC4F /* DateController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC57613E2A57F94400DEBC4F /* DateController.swift */; };
 		FC61C3AC2BFCA41F0006B52B /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC61C3AB2BFCA41F0006B52B /* Logger.swift */; };
 		FC68431D2A513B8E00BD3BBE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC68431C2A513B8E00BD3BBE /* AppDelegate.swift */; };
@@ -24,7 +25,6 @@
 		FC6843242A513B8E00BD3BBE /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = FC6843222A513B8E00BD3BBE /* Main.storyboard */; };
 		FC6843262A513B9000BD3BBE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FC6843252A513B9000BD3BBE /* Assets.xcassets */; };
 		FC6843292A513B9000BD3BBE /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = FC6843272A513B9000BD3BBE /* LaunchScreen.storyboard */; };
-		FC77DE4C2BF58A7E00CE1CBB /* ObservableObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC77DE4B2BF58A7E00CE1CBB /* ObservableObject.swift */; };
 		FC896C8C2BF9A39800DEF61E /* searchControlViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC896C8B2BF9A39800DEF61E /* searchControlViewModel.swift */; };
 		FCAC1DB72A66856400997A41 /* LunchingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCAC1DB62A66856400997A41 /* LunchingViewController.swift */; };
 		FCCF802D2BF8931800AF553A /* FileMgr.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCCF802C2BF8931800AF553A /* FileMgr.swift */; };
@@ -43,6 +43,7 @@
 		FC4B84F82A517C25004E926B /* EditViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditViewController.swift; sourceTree = "<group>"; };
 		FC4B84FA2A51A850004E926B /* TagTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagTableViewController.swift; sourceTree = "<group>"; };
 		FC53326B2BF92FB700815CC3 /* segmentationControllerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = segmentationControllerViewModel.swift; sourceTree = "<group>"; };
+		FC5443B92C3F574700251622 /* ObservableObject.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ObservableObject.swift; sourceTree = "<group>"; };
 		FC57613E2A57F94400DEBC4F /* DateController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateController.swift; sourceTree = "<group>"; };
 		FC61C3AB2BFCA41F0006B52B /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		FC6843192A513B8E00BD3BBE /* FridgeHelper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FridgeHelper.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -52,7 +53,6 @@
 		FC6843252A513B9000BD3BBE /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FC6843282A513B9000BD3BBE /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		FC68432A2A513B9000BD3BBE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		FC77DE4B2BF58A7E00CE1CBB /* ObservableObject.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObservableObject.swift; sourceTree = SOURCE_ROOT; };
 		FC896C8B2BF9A39800DEF61E /* searchControlViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = searchControlViewModel.swift; sourceTree = "<group>"; };
 		FCAC1DB62A66856400997A41 /* LunchingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunchingViewController.swift; sourceTree = "<group>"; };
 		FCC8E3442A7748F80046FDF2 /* FridgeHelper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FridgeHelper.entitlements; sourceTree = "<group>"; };
@@ -133,8 +133,8 @@
 				FCC8E3442A7748F80046FDF2 /* FridgeHelper.entitlements */,
 				FC68431C2A513B8E00BD3BBE /* AppDelegate.swift */,
 				FC68431E2A513B8E00BD3BBE /* SceneDelegate.swift */,
-				FC77DE4B2BF58A7E00CE1CBB /* ObservableObject.swift */,
 				FC61C3AB2BFCA41F0006B52B /* Logger.swift */,
+				FC5443B92C3F574700251622 /* ObservableObject.swift */,
 				FC6480862A5EE35C00D59DC8 /* Model */,
 				FC6480872A5EE39700D59DC8 /* View */,
 				FC6480882A5EE3B400D59DC8 /* Controller */,
@@ -242,6 +242,7 @@
 				FC61C3AC2BFCA41F0006B52B /* Logger.swift in Sources */,
 				FC57613F2A57F94400DEBC4F /* DateController.swift in Sources */,
 				FC896C8C2BF9A39800DEF61E /* searchControlViewModel.swift in Sources */,
+				FC5443BA2C3F574700251622 /* ObservableObject.swift in Sources */,
 				FC3D23282A56A283001397CE /* AlertVIew.swift in Sources */,
 				FC53326C2BF92FB700815CC3 /* segmentationControllerViewModel.swift in Sources */,
 				FC4B84F72A517529004E926B /* Item.swift in Sources */,
@@ -250,7 +251,6 @@
 				FC4B84F92A517C25004E926B /* EditViewController.swift in Sources */,
 				FC4B1AF32BF66CEF001C60E4 /* TagViewModel.swift in Sources */,
 				FCCF802D2BF8931800AF553A /* FileMgr.swift in Sources */,
-				FC77DE4C2BF58A7E00CE1CBB /* ObservableObject.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
