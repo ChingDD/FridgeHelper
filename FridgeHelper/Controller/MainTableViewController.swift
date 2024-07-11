@@ -54,6 +54,9 @@ class MainTableViewController: UITableViewController {
         //導航列的title
         title = "FridgeHelper"
         
+        //詢問權限
+        self.setLocalNotifications()
+        
         //MARK: - Bind
         //sort
         sortViewModel.sortOptionObservor.bind { option in
