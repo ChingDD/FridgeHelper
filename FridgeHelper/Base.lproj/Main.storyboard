@@ -189,13 +189,13 @@
                                                             <rect key="frame" x="0.0" y="0.0" width="249" height="135"/>
                                                             <subviews>
                                                                 <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="名稱" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="wIU-R2-CXI">
-                                                                    <rect key="frame" x="0.0" y="0.0" width="50.666666666666664" height="30"/>
+                                                                    <rect key="frame" x="0.0" y="0.0" width="50.666666666666664" height="27"/>
                                                                     <fontDescription key="fontDescription" type="boldSystem" pointSize="25"/>
                                                                     <color key="textColor" name="Color6"/>
                                                                     <nil key="highlightedColor"/>
                                                                 </label>
                                                                 <stackView opaque="NO" contentMode="scaleToFill" spacing="5" translatesAutoresizingMaskIntoConstraints="NO" id="ReT-8S-6at">
-                                                                    <rect key="frame" x="0.0" y="40" width="159" height="30"/>
+                                                                    <rect key="frame" x="0.0" y="37" width="159" height="30"/>
                                                                     <subviews>
                                                                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="數量" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Aqv-og-5ar">
                                                                             <rect key="frame" x="0.0" y="0.0" width="41" height="30"/>
@@ -261,18 +261,18 @@
                                                                     </subviews>
                                                                 </stackView>
                                                                 <stackView opaque="NO" contentMode="scaleToFill" spacing="5" translatesAutoresizingMaskIntoConstraints="NO" id="ENz-gn-Qg0">
-                                                                    <rect key="frame" x="0.0" y="80" width="70.333333333333329" height="21"/>
+                                                                    <rect key="frame" x="0.0" y="77" width="71.333333333333329" height="24"/>
                                                                     <subviews>
                                                                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" horizontalCompressionResistancePriority="751" text="到期日" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="YIZ-86-5pe">
-                                                                            <rect key="frame" x="0.0" y="0.0" width="61.333333333333336" height="21"/>
+                                                                            <rect key="frame" x="0.0" y="0.0" width="61.333333333333336" height="24"/>
                                                                             <fontDescription key="fontDescription" type="system" pointSize="20"/>
                                                                             <color key="textColor" name="Color6"/>
                                                                             <nil key="highlightedColor"/>
                                                                         </label>
                                                                         <textField opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="248" enabled="NO" contentHorizontalAlignment="left" contentVerticalAlignment="center" textAlignment="natural" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="dms-lZ-Dhz">
-                                                                            <rect key="frame" x="66.333333333333329" y="0.0" width="4" height="21"/>
+                                                                            <rect key="frame" x="66.333333333333329" y="0.0" width="5" height="24"/>
                                                                             <color key="textColor" name="Color6"/>
-                                                                            <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                                                                            <fontDescription key="fontDescription" type="system" pointSize="20"/>
                                                                             <textInputTraits key="textInputTraits"/>
                                                                         </textField>
                                                                     </subviews>
