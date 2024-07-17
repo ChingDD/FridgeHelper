@@ -16,6 +16,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         //sleep(3)
         print("家目錄：\(NSHomeDirectory())")
+        //Set Navigation UI
         let navigationBarAppearance = UINavigationBarAppearance()
         navigationBarAppearance.configureWithDefaultBackground()
         navigationBarAppearance.shadowColor = .clear
@@ -26,7 +27,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         ]
         UINavigationBar.appearance().standardAppearance = navigationBarAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navigationBarAppearance
-        // Override point for customization after application launch.
+        
+        //Set UNUserNotificationCenter
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
         return true
     }
 

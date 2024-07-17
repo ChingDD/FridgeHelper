@@ -139,7 +139,6 @@ class MainTableViewController: UITableViewController {
     }
     
     //MARK: - 自定義function
-    //MARK: - 應該改成看需要update哪個參數就update該參數就好，不要全部參數都update   //辦不到
     fileprivate func updateShowedItems() {
         itemViewModel.updateShowedItems(
             segmentControllerIndex: segmentationControlViewModel.indexObservor.value,
@@ -211,7 +210,7 @@ class MainTableViewController: UITableViewController {
     func setLocalNotifications() {
         //1. ask user permission
         let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound]) { granted, errors in
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, errors in
             guard errors == nil else { return }
             if !granted {
                 let controller = UIAlertController(title: "local notification permission", message: "需要打開通知權限，才能提醒是某有物品要過期", preferredStyle: .alert)
