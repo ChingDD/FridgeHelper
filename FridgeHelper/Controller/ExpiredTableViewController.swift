@@ -20,14 +20,16 @@ class ExpiredTableViewController: UITableViewController {
         super.viewDidLoad()
         printInfo("viewDidLoad")
         title = "即將過期的食品！"
+        
     //MARK: - Bind
-        itemViewModel.savedItemsObservor.bind { items in
-            self.itemViewModel.fetchExpiredItems()
-        }
-
-        itemViewModel.expiredItemObservor.bind { items in
-            self.tableView.reloadData()
-        }
+        // 在itemViewModel被建立時就已經把saveItem跟expiredItem的資料都抓好了
+//        itemViewModel.savedItemsObservor.bind { items in
+//            self.itemViewModel.fetchExpiredItems()
+//        }
+//
+//        itemViewModel.expiredItemObservor.bind { items in
+//            self.tableView.reloadData()
+//        }
         
     }
 
@@ -61,8 +63,7 @@ class ExpiredTableViewController: UITableViewController {
         }
        
         //更新顯示的物品
-        itemViewModel.fetchSavedItems()
-        itemViewModel.fetchExpiredItems()
+//        itemViewModel.fetchExpiredItems()
         
     }
     

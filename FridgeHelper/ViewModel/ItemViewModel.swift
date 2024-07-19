@@ -25,6 +25,7 @@ class ItemViewModel {
     init() {
         //讀取存在Document資料夾的items
         fetchSavedItems()
+        fetchExpiredItems()
         showedItemsObservor.value = savedItemsObservor.value
     }
     

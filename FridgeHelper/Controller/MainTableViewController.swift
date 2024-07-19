@@ -76,7 +76,7 @@ class MainTableViewController: UITableViewController {
         //item
         itemViewModel.savedItemsObservor.bind { items in
             self.updateShowedItems()
-            self.updateExpiredItems()
+            self.updateExpiredItems()   // if user add expired items, items should show be showed
             printInfo("Saved Items 已更新")
         }
         
@@ -128,7 +128,7 @@ class MainTableViewController: UITableViewController {
         //但如果後來刪光，資料都是存空字串
         tagViewModel.fetchedTags()
         
-        //抓出有過期的物品
+        //防止app開著但沒有任何更新物品的行為，而物品中有東西過期了，因此這邊主動抓出有過期的物品
         itemViewModel.fetchExpiredItems()
         
         //點了btn才會有反應
