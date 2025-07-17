@@ -54,8 +54,7 @@ class MainTableViewController: UITableViewController {
         //導航列的title
         title = "FridgeHelper"
         
-        //詢問權限
-        self.setLocalNotifications()
+        
         
         //MARK: - Bind
         //sort
@@ -207,53 +206,7 @@ class MainTableViewController: UITableViewController {
         return menu
     }
     
-    func setLocalNotifications() {
-        //1. ask user permission
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, errors in
-            guard errors == nil else { return }
-            if !granted {
-                let controller = UIAlertController(title: "local notification permission", message: "需要打開通知權限，才能提醒是某有物品要過期", preferredStyle: .alert)
-                let okAction = UIAlertAction(title: "確認", style: .default) { _
-                    in
-                    let appSetting = URL(string: UIApplication.openSettingsURLString)
-                    UIApplication.shared.open(appSetting!)
-                }
-                let cancel = UIAlertAction(title: "取消", style: .cancel) { _ in
-                    self.dismiss(animated: true)
-                }
-                controller.addAction(okAction)
-                controller.addAction(cancel)
-            }
-        }
-        //2. creat notification content
-        let content = UNMutableNotificationContent()
-        content.title = "有快要過期的物品！"
-        content.body = "請點擊查看"
-        content.badge = 1
-        content.sound = UNNotificationSound.default
-        //3. creat trigger
-        let dateComponents = DateComponents(hour: 12, minute: 0)
-        //let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
-//        let date = Date().addingTimeInterval(2)
-//        let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        
-        //4. create request
-        let uuid = UUID().uuidString
-        let request = UNNotificationRequest(identifier: uuid, content: content, trigger: trigger)
-        
-        //5. register the request
-        center.add(request) { error in
-            guard error == nil else {
-                printInfo("Send Notification (Error:\(error))")
-                return
-            }
-            printInfo("Send Notification (Success)")
-        }
-
-        
-    }
+    
     
     //測試OK
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {

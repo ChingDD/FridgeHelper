@@ -7,11 +7,12 @@
 
 import UIKit
 import UserNotifications
+import BackgroundTasks
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
-
+    let backgroundTaskID = "com.jefflin.FridgeHelper.checkExpired"
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         //sleep(3)
@@ -28,9 +29,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         UINavigationBar.appearance().standardAppearance = navigationBarAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navigationBarAppearance
         
-        //Set UNUserNotificationCenter
+        //Set UNUserNotificationCenter and request authorization
         let center = UNUserNotificationCenter.current()
         center.delegate = self
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { (granted, error) in
+            if granted {
+                print("Notification authorization granted.")
+            } else {
+                print("Notification authorization denied.")
+            }
+        }
+        
+        // Register the background task
+        registerBackgroundTask()
+        
         return true
     }
 
@@ -56,6 +68,87 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner ,.sound])    //當app在前景時，也可以跳出通知(這邊取消icon數字的呈現)
+    }
+    
+    // MARK: - Background Task Management
+    func registerBackgroundTask() {
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: backgroundTaskID, using: nil) { task in
+            // This closure is called when the system runs the task
+            self.handleAppRefresh(task: task as! BGAppRefreshTask)
+        }
+    }
+
+    func scheduleAppRefresh() {
+        let request = BGAppRefreshTaskRequest(identifier: backgroundTaskID)
+        
+        // Set the earliest time to run the task to 8:00 AM
+        var components = DateComponents()
+        components.hour = 8
+        components.minute = 0
+        
+        // For production, schedule for the next 8 AM
+        let now = Date()
+        var eightAM = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: now)!
+        if eightAM < now {
+            // If 8 AM has already passed today, schedule for tomorrow
+            eightAM = Calendar.current.date(byAdding: .day, value: 1, to: eightAM)!
+        }
+        request.earliestBeginDate = eightAM
+
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            print("Background task scheduled successfully for \(request.earliestBeginDate!)")
+        } catch {
+            print("Could not schedule app refresh: \(error)")
+        }
+    }
+
+    func handleAppRefresh(task: BGAppRefreshTask) {
+        // Schedule the next refresh task so it repeats
+        scheduleAppRefresh()
+
+        let queue = OperationQueue()
+        queue.maxConcurrentOperationCount = 1
+
+        let operation = BlockOperation {
+            print("Performing background fetch...")
+            let items = FileMgr.shared.fetchItems()
+            if let expiredItems = FileMgr.shared.fetchExpiredItems(items), !expiredItems.isEmpty {
+                self.sendExpirationNotification(expiredItems: expiredItems)
+            }
+        }
+
+        task.expirationHandler = {
+            queue.cancelAllOperations()
+        }
+        
+        operation.completionBlock = {
+            let success = !operation.isCancelled
+            print("Background fetch completed with success: \(success)")
+            task.setTaskCompleted(success: success)
+        }
+
+        queue.addOperation(operation)
+    }
+
+    // MARK: - User Notifications
+    func sendExpirationNotification(expiredItems: [Item]) {
+        let content = UNMutableNotificationContent()
+        content.title = "冰箱裡有東西快過期囉！"
+        content.body = "有 \(expiredItems.count) 樣物品即將過期，快去看看吧！"
+        content.sound = .default
+        content.userInfo = ["show-expired-items": true] // Custom data
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error sending notification: \(error)")
+            } else {
+                print("Notification sent successfully for \(expiredItems.count) items.")
+            }
+        }
     }
 }
 
