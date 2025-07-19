@@ -43,6 +43,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Register the background task
         registerBackgroundTask()
         
+        // Schedule the background task
+        scheduleAppRefresh()
+        
         return true
     }
 
@@ -137,6 +140,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         content.title = "冰箱裡有東西快過期囉！"
         content.body = "有 \(expiredItems.count) 樣物品即將過期，快去看看吧！"
         content.sound = .default
+        content.badge = 1
         content.userInfo = ["show-expired-items": true] // Custom data
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
