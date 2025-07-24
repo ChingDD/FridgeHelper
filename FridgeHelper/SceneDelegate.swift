@@ -45,11 +45,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func sceneDidEnterBackground(_ scene: UIScene) {
         // 更改Badge數量
         center.setBadgeCount(0)
-        // Schedule the background task when the app goes to the background
-        (UIApplication.shared.delegate as? AppDelegate)?.scheduleAppRefresh()
-        // Called as the scene transitions from the foreground to the background.
-        // Use this method to save data, release shared resources, and store enough scene-specific state information
-        // to restore the scene back to its current state.
     }
 
 

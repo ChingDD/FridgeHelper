@@ -7,6 +7,11 @@
 
 import Foundation
 
+protocol NotificationManagerDelegate: AnyObject {
+    func rescheduleNotification(for item: Item)
+    func removeNotifications(for item: Item)
+}
+
 enum ItemModifyStatus {
     case addItem
     case deletItem(index: Int)
@@ -21,6 +26,7 @@ class ItemViewModel {
     var showedItemsObservor: ObservableObject = ObservableObject<[Item]?>(value: nil)
     
     var itemModifyStatus: ItemModifyStatus = .none
+    weak var notificationDelegate: NotificationManagerDelegate?
     
     init() {
         //讀取存在Document資料夾的items
@@ -113,8 +119,13 @@ class ItemViewModel {
            let showedItems = showedItemsObservor.value {
             var newSavesItems = savedItems
             if let chosenItemIndex = savedItems.firstIndex(where:{ $0.timeStamp == showedItems[showedItemIndex].timeStamp }){
+                let oldItem = newSavesItems[chosenItemIndex]
                 newSavesItems[chosenItemIndex] = item
                 updateSavedItems(items: newSavesItems)
+                
+                // 重新設定通知
+                notificationDelegate?.removeNotifications(for: oldItem)
+                notificationDelegate?.rescheduleNotification(for: item)
             }
         }
     }
@@ -127,6 +138,9 @@ class ItemViewModel {
                 savedItems.remove(at: chosenItemIndex)
                 itemModifyStatus = .deletItem(index: showedItemIndex)
                 updateSavedItems(items: savedItems)
+                
+                // 清除被刪除物品的通知
+                notificationDelegate?.removeNotifications(for: removedItem)
             }
         }
     }
@@ -139,6 +153,9 @@ class ItemViewModel {
         newSavedItems.insert(item, at: 0)
         itemModifyStatus = .addItem
         updateSavedItems(items: newSavedItems)
+        
+        // 為新添加的物品安排通知
+        notificationDelegate?.rescheduleNotification(for: item)
     }
     
     func resetItemStatus() {

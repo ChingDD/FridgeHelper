@@ -38,6 +38,10 @@ class MainTableViewController: UITableViewController {
     //MARK: - viewController life cycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        // 設定 notification delegate
+        itemViewModel.notificationDelegate = self
+        
         //生成搜尋列
         let searchController = UISearchController()
         navigationItem.searchController = searchController
@@ -505,6 +509,20 @@ extension MainTableViewController:UISearchResultsUpdating {
             searchControlViewModel.setKeyword(searchText)
         } else {
             searchControlViewModel.setKeyword(nil)
+        }
+    }
+}
+
+extension MainTableViewController: NotificationManagerDelegate {
+    func rescheduleNotification(for item: Item) {
+        if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
+            appDelegate.scheduleNotification(for: item)
+        }
+    }
+    
+    func removeNotifications(for item: Item) {
+        if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
+            appDelegate.removeNotifications(for: item)
         }
     }
 }
