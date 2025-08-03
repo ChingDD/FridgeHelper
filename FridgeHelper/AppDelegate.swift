@@ -115,7 +115,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             expiryDayContent.sound = .default
             expiryDayContent.userInfo = ["item-name": item.name, "expiry-date": item.expiryDate, "notification-type": "expiry-day"]
             
-            let expiryDayComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: expiryDate)
+            let expiryDayComponents = calendar.dateComponents([.year, .month, .day], from: expiryDate)
             let expiryDayTrigger = UNCalendarNotificationTrigger(dateMatching: expiryDayComponents, repeats: false)
             let expiryDayRequest = UNNotificationRequest(
                 identifier: "expiry-day-\(item.name)-\(item.timeStamp ?? UUID().uuidString)",
