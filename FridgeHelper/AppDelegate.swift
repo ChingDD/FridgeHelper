@@ -28,24 +28,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         ]
         UINavigationBar.appearance().standardAppearance = navigationBarAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navigationBarAppearance
-        
-        //Set UNUserNotificationCenter and request authorization
-        let center = UNUserNotificationCenter.current()
-        center.delegate = self
-        center.requestAuthorization(options: [.alert, .sound, .badge]) { (granted, error) in
-            if granted {
-                print("Notification authorization granted.")
-            } else {
-                print("Notification authorization denied.")
-            }
-        }
-        
-        // Register the background task
-        registerBackgroundTask()
-        
-        // Schedule the background task
-        scheduleAppRefresh()
-        
+        planAllItemsExpirationNotification()
         return true
     }
 
@@ -72,86 +55,90 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner ,.sound])    //當app在前景時，也可以跳出通知(這邊取消icon數字的呈現)
     }
-    
-    // MARK: - Background Task Management
-    func registerBackgroundTask() {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: backgroundTaskID, using: nil) { task in
-            // This closure is called when the system runs the task
-            self.handleAppRefresh(task: task as! BGAppRefreshTask)
-        }
-    }
-
-    func scheduleAppRefresh() {
-        let request = BGAppRefreshTaskRequest(identifier: backgroundTaskID)
-        
-        // Set the earliest time to run the task to 8:00 AM
-        var components = DateComponents()
-        components.hour = 8
-        components.minute = 0
-        
-        // For production, schedule for the next 8 AM
-        let now = Date()
-        var eightAM = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: now)!
-        if eightAM < now {
-            // If 8 AM has already passed today, schedule for tomorrow
-            eightAM = Calendar.current.date(byAdding: .day, value: 1, to: eightAM)!
-        }
-        request.earliestBeginDate = eightAM
-
-        do {
-            try BGTaskScheduler.shared.submit(request)
-            print("Background task scheduled successfully for \(request.earliestBeginDate!)")
-        } catch {
-            print("Could not schedule app refresh: \(error)")
-        }
-    }
-
-    func handleAppRefresh(task: BGAppRefreshTask) {
-        // Schedule the next refresh task so it repeats
-        scheduleAppRefresh()
-
-        let queue = OperationQueue()
-        queue.maxConcurrentOperationCount = 1
-
-        let operation = BlockOperation {
-            print("Performing background fetch...")
-            let items = FileMgr.shared.fetchItems()
-            if let expiredItems = FileMgr.shared.fetchExpiredItems(items), !expiredItems.isEmpty {
-                self.sendExpirationNotification(expiredItems: expiredItems)
-            }
-        }
-
-        task.expirationHandler = {
-            queue.cancelAllOperations()
-        }
-        
-        operation.completionBlock = {
-            let success = !operation.isCancelled
-            print("Background fetch completed with success: \(success)")
-            task.setTaskCompleted(success: success)
-        }
-
-        queue.addOperation(operation)
-    }
 
     // MARK: - User Notifications
-    func sendExpirationNotification(expiredItems: [Item]) {
-        let content = UNMutableNotificationContent()
-        content.title = "冰箱裡有東西快過期囉！"
-        content.body = "有 \(expiredItems.count) 樣物品即將過期，快去看看吧！"
-        content.sound = .default
-        content.badge = 1
-        content.userInfo = ["show-expired-items": true] // Custom data
 
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
-
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Error sending notification: \(error)")
-            } else {
-                print("Notification sent successfully for \(expiredItems.count) items.")
+    // 清除特定物品的所有通知
+    func removeNotifications(for item: Item) {
+        let center = UNUserNotificationCenter.current()
+        let identifiers = [
+            "three-days-\(item.name)-\(item.timeStamp ?? "")",
+            "expiry-day-\(item.name)-\(item.timeStamp ?? "")"
+        ]
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        print("Removed notifications for item: \(item.name)")
+    }
+    
+    // 為單一物品安排通知
+    func scheduleNotification(for item: Item) {
+        let center = UNUserNotificationCenter.current()
+        let calendar = Calendar.current
+        let now = Date()
+        
+        let expiryDate = item.expiryDate
+        let daysUntilExpiry = calendar.dateComponents([.day], from: now, to: expiryDate).day ?? 0
+        
+        // 只為未過期的物品安排通知
+        if daysUntilExpiry >= 0 {
+            
+            // 1. 安排過期前三天的通知
+            if daysUntilExpiry >= 3 {
+                let threeDaysContent = UNMutableNotificationContent()
+                threeDaysContent.title = "食物即將過期"
+                threeDaysContent.body = "\(item.name) 還有3天過期，記得及時處理！"
+                threeDaysContent.sound = .default
+                threeDaysContent.userInfo = ["item-name": item.name, "expiry-date": item.expiryDate, "notification-type": "three-days-before"]
+                
+                let threeDaysBeforeExpiry = calendar.date(byAdding: .day, value: -3, to: expiryDate)!
+                let threeDaysComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: threeDaysBeforeExpiry)
+                
+                let threeDaysTrigger = UNCalendarNotificationTrigger(dateMatching: threeDaysComponents, repeats: false)
+                let threeDaysRequest = UNNotificationRequest(
+                    identifier: "three-days-\(item.name)-\(item.timeStamp ?? UUID().uuidString)",
+                    content: threeDaysContent,
+                    trigger: threeDaysTrigger
+                )
+                
+                center.add(threeDaysRequest) { error in
+                    if let error = error {
+                        print("Error scheduling 3-day notification for \(item.name): \(error)")
+                    } else {
+                        print("3-day notification scheduled for \(item.name)")
+                    }
+                }
             }
+            
+            // 2. 安排過期當天的通知
+            let expiryDayContent = UNMutableNotificationContent()
+            expiryDayContent.title = "食物今天過期！"
+            expiryDayContent.body = "\(item.name) 今天過期，請立即處理！"
+            expiryDayContent.sound = .default
+            expiryDayContent.userInfo = ["item-name": item.name, "expiry-date": item.expiryDate, "notification-type": "expiry-day"]
+            
+            let expiryDayComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: expiryDate)
+            let expiryDayTrigger = UNCalendarNotificationTrigger(dateMatching: expiryDayComponents, repeats: false)
+            let expiryDayRequest = UNNotificationRequest(
+                identifier: "expiry-day-\(item.name)-\(item.timeStamp ?? UUID().uuidString)",
+                content: expiryDayContent,
+                trigger: expiryDayTrigger
+            )
+            
+            center.add(expiryDayRequest) { error in
+                if let error = error {
+                    print("Error scheduling expiry-day notification for \(item.name): \(error)")
+                } else {
+                    print("Expiry-day notification scheduled for \(item.name)")
+                }
+            }
+        }
+    }
+    
+    func planAllItemsExpirationNotification() {
+        let items = FileMgr.shared.fetchItems()
+        guard let items, !items.isEmpty else { return }
+
+        for item in items {
+            scheduleNotification(for: item)
         }
     }
 }
