@@ -7,566 +7,316 @@
 
 import UIKit
 import UserNotifications
+import Combine
 
 class MainTableViewController: UITableViewController {
-    //為什麼IBOulet會有weak? 因為這些元件都是view的subView，所以他們被存在subView的array裡，已經有連結指向他們。所以這邊可以使用weak。
+
     @IBOutlet weak var storeConditionSegmentControl: UISegmentedControl!
-    
     @IBOutlet weak var tagFilterBtn: UIButton!
-    
     @IBOutlet weak var sortItemBtn: UIButton!
-        
     @IBOutlet weak var tableHeaderView: UIView!
-    
     @IBOutlet weak var expiredAmounts: UILabel!
-    
-    
-    //viewModel
-    var itemViewModel = ItemViewModel()
-    var tagViewModel = TagViewModel()
-    var sortViewModel = SortViewModel()
-    var segmentationControlViewModel = SegmentationControlViewModel()
-    var searchControlViewModel = SearchControlViewModel()
-    
-    //目前cell被選到的狀態
+
+    // Injected by LunchingViewController
+    var viewModel: MainViewModel!
+    var tagViewModel: TagViewModel!
+
     var isCellSelected = false
-    
-    //for count btn
-    var triggerCountBtnTimer: Timer?
-    var canSaveItem: Bool = false
-    
-    //MARK: - viewController life cycle
+    private var cancellables = Set<AnyCancellable>()
+
+    // MARK: - ViewController Lifecycle
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        // 設定 notification delegate
-        itemViewModel.notificationDelegate = self
-        
-        //生成搜尋列
+
+        // Temporary guard: allow standalone launch without injection
+        if viewModel == nil {
+            let tempTag = TagViewModel()
+            tagViewModel = tempTag
+            viewModel = MainViewModel(tagViewModel: tempTag)
+        }
+        if tagViewModel == nil {
+            tagViewModel = TagViewModel()
+        }
+
+        viewModel.notificationDelegate = self
+
+        // Search controller
         let searchController = UISearchController()
         navigationItem.searchController = searchController
         searchController.searchResultsUpdater = self
-        
-        //改變segmentControl UI
-        storeConditionSegmentControl.setTitleTextAttributes([NSAttributedString.Key.foregroundColor:UIColor(named: "Color6")!], for: .selected)
-        storeConditionSegmentControl.setTitleTextAttributes([NSAttributedString.Key.foregroundColor:UIColor(named: "Color7")!], for: .normal)
-        
-        //篩選按鈕加入menu
-        sortItemBtn.menu = setSortMethodMenu()
+
+        // SegmentControl UI
+        storeConditionSegmentControl.setTitleTextAttributes(
+            [NSAttributedString.Key.foregroundColor: UIColor(named: "Color6")!], for: .selected)
+        storeConditionSegmentControl.setTitleTextAttributes(
+            [NSAttributedString.Key.foregroundColor: UIColor(named: "Color7")!], for: .normal)
+
+        // Sort button menu
+        sortItemBtn.menu = buildSortMenu()
         sortItemBtn.showsMenuAsPrimaryAction = true
-       
-        //導航列的title
+
+        // Tag filter button
+        tagFilterBtn.showsMenuAsPrimaryAction = true
+
         title = "FridgeHelper"
-        
-        
-        
-        //MARK: - Bind
-        //sort
-        sortViewModel.sortOptionObservor.bind { option in
-            self.updateShowedItems()
-        }
-        
-        //tag
-        tagViewModel.chosenTagObservor.bind { tag in
-            self.updateShowedItems()
-        }
-        
-        tagViewModel.tagsObservor.bind { tags in
-            self.tagFilterBtn.menu = self.setTagPopUpMenu(tags: self.tagViewModel.tagsObservor.value)
-            self.updateCurrentTagUI(tag: self.tagViewModel.chosenTagObservor.value)
-        }
-        
-        //item
-        itemViewModel.savedItemsObservor.bind { items in
-            self.updateShowedItems()
-            self.updateExpiredItems()   // if user add expired items, items should show be showed
-            printInfo("Saved Items 已更新")
-        }
-        
-        itemViewModel.expiredItemObservor.bind { items in
-            self.expiredAmounts.isHidden = (items != nil) ? false : true
-            self.expiredAmounts.text = (items != nil) ? "\(items!.count)" : "0"
-        }
-        
-        itemViewModel.showedItemsObservor.bind { items in
-            
-            switch self.itemViewModel.itemModifyStatus {
-                
-            case .deletItem(index: let index):
-                if let items {
-                    self.tableView.deleteSections(IndexSet(integer: index), with: .fade)
-                } else {
-                    self.tableView.reloadData()
-                }
-                
-            case .modifiyItem(index: let index):
-                self.tableView.reloadRows(at: [IndexPath(row: 0, section: index)], with: .automatic)
-                
-            case .filter:
-                self.tableView.reloadData()
-                
-            case .addItem:
-                self.tableView.reloadData()
-                
-            case .none:
-                self.tableView.reloadData()
-            }
-            self.itemViewModel.resetItemStatus()
-        }
-        
-        //keyword
-        searchControlViewModel.keywordObservor.bind { keyword in
-            self.updateShowedItems()
-        }
-        
-        //segmentation control
-        segmentationControlViewModel.indexObservor.bind { index in
-            self.updateShowedItems()
-        }
+
+        bindViewModel()
+
+        // Initial table load (pipeline fires async, so reload explicitly)
+        tableView.reloadData()
     }
 
     override func viewWillAppear(_ animated: Bool) {
-        //讀取存在Document資料夾的tags
-        //app一安裝時是沒存資料的，所以抓出來一定是nil
-        //但如果後來刪光，資料都是存空字串
-        tagViewModel.fetchedTags()
-        
-        //防止app開著但沒有任何更新物品的行為，而物品中有東西過期了，因此這邊主動抓出有過期的物品
-        itemViewModel.fetchExpiredItems()
-        
-        //點了btn才會有反應
-        tagFilterBtn.showsMenuAsPrimaryAction = true
-        
-        //取消cell被選擇的狀態
+        super.viewWillAppear(animated)
+        // Reload tag filter menu in case tags changed
+        tagFilterBtn.menu = buildTagMenu()
+        // Refresh expired items in case time has passed
+        viewModel.refreshExpiredItems()
         isCellSelected = false
     }
-    
-    //MARK: - 自定義function
-    fileprivate func updateShowedItems() {
-        itemViewModel.updateShowedItems(
-            segmentControllerIndex: segmentationControlViewModel.indexObservor.value,
-            sortOption: sortViewModel.sortOptionObservor.value,
-            tag: tagViewModel.chosenTagObservor.value,
-            keyword: searchControlViewModel.keywordObservor.value)
-    }
-    
-    private func updateExpiredItems() {
-        itemViewModel.fetchExpiredItems()
-    }
-    
-    //建立標籤按鈕
-    private func setTagPopUpMenu(tags:[String]?)->UIMenu {
-        //如果tags是nil，則顯示尚未建立標籤的UIAction
-        guard let tags, !tags.isEmpty else {
-            let noTagBtn = UIAction(title: "尚未建立標籤") { _ in
-                print("尚未建立標籤")
+
+    // MARK: - Combine Bindings
+
+    private func bindViewModel() {
+        // Table update events (reload / delete / reloadRow)
+        viewModel.tableUpdateEvent
+            .receive(on: RunLoop.main)
+            .sink { [weak self] event in
+                switch event {
+                case .reload:
+                    self?.tableView.reloadData()
+                case .deleteSection(let i):
+                    self?.tableView.deleteSections(IndexSet(integer: i), with: .fade)
+                case .reloadSection(let i):
+                    self?.tableView.reloadRows(at: [IndexPath(row: 0, section: i)], with: .automatic)
+                }
             }
-            let menu = UIMenu(title: "標籤篩選器", options: .displayInline, children: [noTagBtn])
-            return menu
-        }
-        
-        //定義一個變數tagBtns裝UIAction陣列
-        //用map將[String]變成[UIAction]
-        var tagBtns = tags.map { tag in
-            //建立UIAction
-            let tagBtn = UIAction(title: tag) { [self] _ in
-                tagViewModel.setCurrentTag(tag: tag)
+            .store(in: &cancellables)
+
+        // Expired badge
+        viewModel.$expiredCount
+            .receive(on: RunLoop.main)
+            .sink { [weak self] count in
+                self?.expiredAmounts.isHidden = count == 0
+                self?.expiredAmounts.text = "\(count)"
             }
-            return tagBtn
-        }
-        //取消標籤按鈕
-        //cancel的按鈕在畫面出現時會預設被勾起來
-        let cancelAction = UIAction(title: "取消標籤選擇",state: .on) {[self] _ in
-            tagViewModel.setCurrentTag(tag: nil)
-        }
-        
-        //將tagBtns加入取消鈕
-        tagBtns.insert(cancelAction, at: 0)
-        //將 [UIAction]加入menu
-        let menu = UIMenu(title: "標籤篩選器", options: .singleSelection, children: tagBtns)
-        return menu
+            .store(in: &cancellables)
+
+        // Tag list changes → rebuild tag menu
+        tagViewModel.$tags
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.tagFilterBtn.menu = self?.buildTagMenu()
+            }
+            .store(in: &cancellables)
+
+        // Selected tag changes → update tag menu checkmark UI
+        tagViewModel.$selectedTag
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.tagFilterBtn.menu = self?.buildTagMenu()
+            }
+            .store(in: &cancellables)
     }
-    
-    //建立篩選按鈕
-    func setSortMethodMenu() -> UIMenu {
-        let cancelBtn = UIAction(title: "取消", state: .on) {[self]_ in
-            //因為selectShowedItem()會判斷currentSelector狀況，所以要先改currentSelector狀態，才能reloadData
-            sortViewModel.setSortOptions(option: .取消)
+
+    // MARK: - Menu Builders
+
+    private func buildTagMenu() -> UIMenu {
+        let tags = tagViewModel.tags
+        guard !tags.isEmpty else {
+            let noTagBtn = UIAction(title: "尚未建立標籤") { _ in }
+            return UIMenu(title: "標籤篩選器", options: .displayInline, children: [noTagBtn])
         }
-        let sortBtn1 =  UIAction(title: SortMethod.時間排序遠到近.rawValue) {[self]_ in
-            sortViewModel.setSortOptions(option: .時間排序遠到近)
+
+        let cancelAction = UIAction(
+            title: "取消標籤選擇",
+            state: tagViewModel.selectedTag == nil ? .on : .off
+        ) { [weak self] _ in
+            self?.tagViewModel.selectedTag = nil
         }
-        let sortBtn2 =  UIAction(title: SortMethod.時間排序近到遠.rawValue) {[self]_ in
-            sortViewModel.setSortOptions(option: .時間排序近到遠)
+
+        let tagActions = tags.map { tag -> UIAction in
+            UIAction(
+                title: tag,
+                state: self.tagViewModel.selectedTag == tag ? .on : .off
+            ) { [weak self] _ in
+                self?.tagViewModel.selectedTag = tag
+            }
         }
-        let sortBtn3 =  UIAction(title: SortMethod.剩餘數量多到少.rawValue) {[self]_ in
-            sortViewModel.setSortOptions(option: .剩餘數量多到少)
-        }
-        let sortBtn4 =  UIAction(title: SortMethod.剩餘數量少到多.rawValue) {[self]_ in
-            sortViewModel.setSortOptions(option: .剩餘數量少到多)
-        }
-        let menu = UIMenu(title: "分類", options: .singleSelection, children: [cancelBtn,sortBtn1,sortBtn2,sortBtn3,sortBtn4])
-        
-        return menu
+
+        return UIMenu(title: "標籤篩選器", options: .singleSelection, children: [cancelAction] + tagActions)
     }
-    
-    
-    
-    //測試OK
+
+    private func buildSortMenu() -> UIMenu {
+        let cancelBtn = UIAction(title: "取消", state: .on) { [weak self] _ in
+            self?.viewModel.sortOption = .取消
+        }
+        let sortBtn1 = UIAction(title: SortMethod.時間排序遠到近.rawValue) { [weak self] _ in
+            self?.viewModel.sortOption = .時間排序遠到近
+        }
+        let sortBtn2 = UIAction(title: SortMethod.時間排序近到遠.rawValue) { [weak self] _ in
+            self?.viewModel.sortOption = .時間排序近到遠
+        }
+        let sortBtn3 = UIAction(title: SortMethod.剩餘數量多到少.rawValue) { [weak self] _ in
+            self?.viewModel.sortOption = .剩餘數量多到少
+        }
+        let sortBtn4 = UIAction(title: SortMethod.剩餘數量少到多.rawValue) { [weak self] _ in
+            self?.viewModel.sortOption = .剩餘數量少到多
+        }
+        return UIMenu(title: "分類", options: .singleSelection, children: [cancelBtn, sortBtn1, sortBtn2, sortBtn3, sortBtn4])
+    }
+
+    // MARK: - Navigation
+
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        //修改資料時，會走這邊把選到的item傳下一頁顯示
         if isCellSelected {
-            guard let index = tableView.indexPathForSelectedRow?.section, let controller = segue.destination as? EditViewController else {
-                printInfo("Can't Not Find Controller")
+            guard let index = tableView.indexPathForSelectedRow?.section,
+                  let controller = segue.destination as? EditViewController else {
+                printInfo("Can't Find Controller")
                 return
             }
-            controller.item = itemViewModel.showedItemsObservor.value?[index]
+            let selectedItem = viewModel.displayedItems[index]
+            controller.editViewModel = EditViewModel(existingItem: selectedItem, availableTags: tagViewModel.tags)
+        } else {
+            // New item
+            if let controller = segue.destination as? EditViewController {
+                controller.editViewModel = EditViewModel(availableTags: tagViewModel.tags)
+            }
+        }
+
+        if let navVC = segue.destination as? UINavigationController,
+           let tagVC = navVC.viewControllers.first as? TagTableViewController {
+            tagVC.tagViewModel = tagViewModel
+        }
+
+        if let expiredVC = segue.destination as? ExpiredTableViewController {
+            expiredVC.viewModel = viewModel
         }
     }
-    
-    
-    
-    
-    //MARK: - Target Action
-    //測試OK
+
+    // MARK: - Target Actions
+
     @IBAction func unwindToMain(_ unwindSegue: UIStoryboardSegue) {
-        let controller = unwindSegue.source as! EditViewController
-        //若是新增時，是點選新增紐，則這頁的tableViewCell不會被點選，所以indexPathForSelectedRow會是nil，那就會走第一段
-        if isCellSelected == false{
-            printInfo("進入新增區段")
-            itemViewModel.addItem(item: controller.item!)
-        }else{
+        guard let controller = unwindSegue.source as? EditViewController,
+              let item = controller.builtItem else { return }
+
+        if isCellSelected {
             printInfo("進入修改區段")
-            //要是修改，表示是點cell到下一頁，則indexPathForSelectedRow會呈現點選狀態，就不是nil，因此會跑這段
             let index = tableView.indexPathForSelectedRow!.section
-            itemViewModel.updateItemInfo(showedItemIndex: index, item: controller.item!)
-
-
-            /*更新表格
-             如果是更新原cell上面的數量或資訊，可以用reloadRows
-             如果是更新item的儲存條件，導致cell不存在當前頁面，則使用reloadRows會報錯，因為reloadRows是重整當前存在的頁面
-             如果是上述情況，則可使用deleteSections，因為cell不存在當前頁面，所以表格可以以刪除方式刪掉該cell
-             但如果只是單純更新原cell上面的數量或資訊，deleteSections又會出錯
-             所以最好的方法是reloadData
-             
-             tableView.reloadRows(at: [IndexPath(row: 0, section: index)], with: .automatic)
-             tableView.deleteSections(IndexSet(integer: index), with: .fade)
-             */
-            
+            viewModel.updateItem(at: index, with: item)
+        } else {
+            printInfo("進入新增區段")
+            viewModel.addItem(item)
         }
     }
-    
+
     @IBAction func chooseStoreCondition(_ sender: UISegmentedControl) {
-        segmentationControlViewModel.setIndex(index: sender.selectedSegmentIndex)
+        viewModel.segmentIndex = sender.selectedSegmentIndex
     }
 
     @IBAction func changeAmount(_ sender: UIButton) {
-        
         let point = sender.convert(CGPoint.zero, to: tableView)
-        
-        guard let indexPath = tableView.indexPathForRow(at: point) else {return}
-        
-        var showedItem = itemViewModel.showedItemsObservor.value![indexPath.section]
+        guard let indexPath = tableView.indexPathForRow(at: point),
+              !viewModel.displayedItems.isEmpty else { return }
+
+        var showedItem = viewModel.displayedItems[indexPath.section]
         var number = showedItem.number
-        switch sender.tag{
-        case 0:
-             number += 1
-        case 1:
-            if number == 0{
-                number = 0
-            }else{
-                number -= 1
-            }
+        switch sender.tag {
+        case 0: number += 1
+        case 1: number = max(0, number - 1)
         default: break
         }
-        
-    
-        //回改item數量的Label
+
         let cell = tableView.cellForRow(at: indexPath) as! ItemTableViewCell
         cell.numberLabel.text = "\(number)"
 
-        //回改item的數量
-        let newItem = {
-            showedItem.number = number
-            return showedItem
-        }()
-        
-        itemViewModel.itemModifyStatus = .modifiyItem(index: indexPath.section)
-        self.itemViewModel.updateItemInfo(showedItemIndex: indexPath.section, item: newItem)
+        showedItem.number = number
+        viewModel.updateItem(at: indexPath.section, with: showedItem)
+    }
 
-    }
-    
-    func stopTriggerCountBtnTimer() {
-        triggerCountBtnTimer?.invalidate()
-        triggerCountBtnTimer = nil
-        canSaveItem = false
-    }
-    
-    func startTriggerCountBtnTimer() {
-        triggerCountBtnTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false, block: { _ in
-            self.canSaveItem = true
-            self.stopTriggerCountBtnTimer()
-        })
-    }
-    
-    fileprivate func updateCurrentTagUI(tag: String?) {
-        guard let tag else { return }
-        
-        self.tagFilterBtn.menu?.children.forEach {
-            let tagAction = $0 as! UIAction
-            if tagAction.title == tag {
-                tagAction.state = .on
-            }
-        }
-        
-    }
-    
-    // MARK: - Table view data source
+    // MARK: - Table View Data Source
 
     override func numberOfSections(in tableView: UITableView) -> Int {
-      
-        let number = itemViewModel.showedItemsObservor.value?.count ?? 1
-            return number
-     
+        return viewModel.displayedItems.isEmpty ? 1 : viewModel.displayedItems.count
     }
-    
+
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return 1
     }
 
-    
-    //測試OK
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        /*
-         不能在全域變數就把兩個cell做出來，如下，否則開啟app時會出現error
-         let noItemcell = tableView.dequeueReusableCell(withIdentifier: "NoItemTableViewCell", for: indexPath)
-         let itemcell = tableView.dequeueReusableCell(withIdentifier: "ItemTableViewCell", for: indexPath) as! ItemTableViewCell
-         <error>:
-         Thread 1: "Attempted to dequeue multiple cells for the same index path, which is not allowed. If you really need to dequeue more cells than the table view is requesting, use the -dequeueReusableCellWithIdentifier: method (without an index path). Cell identifier: ItemTableViewCell, index path: <NSIndexPath: 0x9b86a3611d9e14b6> {length = 2, path = 0 - 0}"
-         */
-        
-        
-        if let showedItems = itemViewModel.showedItemsObservor.value {
-            var itemcell = tableView.dequeueReusableCell(withIdentifier: "ItemTableViewCell", for: indexPath) as! ItemTableViewCell
-            let showedItem = showedItems[indexPath.section]
-            
-            //日期設定
-            let itemExpiredDate = showedItem.expiryDate
-            itemcell.dateTextField.text = dateController.shared.setDateFormate(itemExpiredDate)
-            itemcell.dateTextField.sizeToFit()
-            
-            //item名字
-            itemcell.itemNameLabel.text = showedItem.name
-            
-            //sizeToFit要寫在後面才有用
-            itemcell.itemNameLabel.sizeToFit()
-            
-            //item數量
-            itemcell.numberLabel.text = "\(showedItem.number)"
-            
-            //備註
-            if let memo = showedItem.memo{
-                itemcell.memoLabel.text = memo
-                itemcell.memoLabel.sizeToFit()
-                itemcell.memoLabel.isHidden = false
-                itemcell.memoTitleLabel.isHidden = false
-            }else{
-                itemcell.memoLabel.isHidden = true
-                itemcell.memoTitleLabel.isHidden = true
-            }
-            
-            //沒有照片的cell，image裡面存nil，因爲有存東西，所以不會被reuse的cell圖片蓋掉
-            if let imageData = showedItem.image{
-                itemcell.itemImageView.image = UIImage(data: imageData)
-            }else{
-                itemcell.itemImageView.image = nil
-            }
-            itemcell.itemImageView.contentMode = .scaleAspectFill
-            
-            return itemcell
-            
-        } else {
-            let noItemcell = tableView.dequeueReusableCell(withIdentifier: "NoItemTableViewCell", for: indexPath)
-            
-            return noItemcell
+        guard !viewModel.displayedItems.isEmpty else {
+            return tableView.dequeueReusableCell(withIdentifier: "NoItemTableViewCell", for: indexPath)
         }
+
+        let itemcell = tableView.dequeueReusableCell(withIdentifier: "ItemTableViewCell", for: indexPath) as! ItemTableViewCell
+        let item = viewModel.displayedItems[indexPath.section]
+
+        itemcell.dateTextField.text = dateController.shared.setDateFormate(item.expiryDate)
+        itemcell.dateTextField.sizeToFit()
+        itemcell.itemNameLabel.text = item.name
+        itemcell.itemNameLabel.sizeToFit()
+        itemcell.numberLabel.text = "\(item.number)"
+
+        if let memo = item.memo {
+            itemcell.memoLabel.text = memo
+            itemcell.memoLabel.sizeToFit()
+            itemcell.memoLabel.isHidden = false
+            itemcell.memoTitleLabel.isHidden = false
+        } else {
+            itemcell.memoLabel.isHidden = true
+            itemcell.memoTitleLabel.isHidden = true
+        }
+
+        if let imageData = item.image {
+            itemcell.itemImageView.image = UIImage(data: imageData)
+        } else {
+            itemcell.itemImageView.image = nil
+        }
+        itemcell.itemImageView.contentMode = .scaleAspectFill
+
+        return itemcell
     }
 
- 
-    
-    
-    //MARK: - Table View Delegate
-    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+    // MARK: - Table View Delegate
 
-        //不能用以下程式碼把選到的東東西放入item變數，因為會先跑prepare，才跑到這邊，所以會來不及準備要傳過去的item
-//        print("跑didSelectRowAt")
-//        print(indexPath.section)
-//        print(items)
-//        item = items[indexPath.section]
-//        print(item)
-    }
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {}
 
     override func tableView(_ tableView: UITableView, willSelectRowAt indexPath: IndexPath) -> IndexPath? {
-        //cell被點選狀態變成true
-        //寫這邊不寫在didSelectRowAt的原因：因為didSelectRowAt最後才跑，這樣的話isCellSelected來不及變true，就會先被prepare讀到false
-        /*
-         willSelectRowAt
-         isCellSelected：true
-         跑prepare
-         跑到prepare裡的indexPathForSelectedRow
-         didSelectRowAt
-
-         */
         isCellSelected = true
         return indexPath
     }
-    
 
-    
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        //準備刪除按鈕
-        //.normal會讓按鈕的顏色是灰色
-        let buttonDelete = UIContextualAction(style: .normal, title: "刪除") {
-            [unowned self]
-            action, view, complete
-            in
-
-            itemViewModel.removeItem(showedItemIndex: indexPath.section)
-                
-                //移除表格
-                //寫deleteRows會報錯，因為我的表格是一個物品代表一個section，此時item減少，section也會減少，但這個func刪掉row後原本的section仍在，故當他偵測到items減少，section數量卻沒變時會報錯
-                //tableView.deleteRows(at: [indexPath], with: .fade) -> 會報錯
-                //tableView.deleteSections(IndexSet(integer: indexPath.section), with: .fade)
+        let buttonDelete = UIContextualAction(style: .normal, title: "刪除") { [weak self] _, _, _ in
+            self?.viewModel.removeItem(at: indexPath.section)
         }
-        
-        
-        //更改按鈕背景色
         buttonDelete.backgroundColor = .red
-        //設定右側按鈕組合
         let config = UISwipeActionsConfiguration(actions: [buttonDelete])
-        //滑到底觸發第一顆按鈕(最右邊)的功能
         config.performsFirstActionWithFullSwipe = false
-        //回傳按鈕組合
         return config
-        
-        
     }
-
-//    override func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
-//        let view = UIView.init(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 0))
-//        view.backgroundColor = .white
-//        return view
-//    }
-//
-//    override func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
-//       return 0
-//    }
-    
-    
-//    override func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
-//        return 0
-//    }
-//
-//
-//    override func tableView(_ tableView: UITableView, estimatedHeightForHeaderInSection section: Int) -> CGFloat {
-//        return 0
-//    }
-//
-//    override func tableView(_ tableView: UITableView, estimatedHeightForFooterInSection section: Int) -> CGFloat {
-//        return 0
-//    }
-    /*
-    // Override to support rearranging the table view.
-    override func tableView(_ tableView: UITableView, moveRowAt fromIndexPath: IndexPath, to: IndexPath) {
-
-    }
-    */
-
-    /*
-    // Override to support conditional rearranging of the table view.
-    override func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the item to be re-orderable.
-        return true
-    }
-    */
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destination.
-        // Pass the selected object to the new view controller.
-    }
-    */
-
 }
 
-//MARK: protocol
-extension MainTableViewController:UISearchResultsUpdating {
+// MARK: - UISearchResultsUpdating
+extension MainTableViewController: UISearchResultsUpdating {
     func updateSearchResults(for searchController: UISearchController) {
-        if let searchText = searchController.searchBar.text {
-            searchControlViewModel.setKeyword(searchText)
-        } else {
-            searchControlViewModel.setKeyword(nil)
-        }
+        viewModel.searchKeyword = searchController.searchBar.text ?? ""
     }
 }
 
+// MARK: - NotificationManagerDelegate
 extension MainTableViewController: NotificationManagerDelegate {
     func rescheduleNotification(for item: Item) {
         if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
             appDelegate.scheduleNotification(for: item)
         }
     }
-    
+
     func removeNotifications(for item: Item) {
         if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
             appDelegate.removeNotifications(for: item)
         }
     }
 }
-
-
-
-/*
- bug:
- ✅ 1.其他溫度的品項增加數量，不會改到對應的物品 -> 本來只有改到savedItems，但也要同時更改showedItems的數量
- ✅ 2.換儲存條件會無法顯示 -> 前面寫了一個guard let擋住了
- ✅ 3.刪除失敗 -> 因為本來刪掉物品後showedItems會didSet然後reloadData，之後才deleteSection，此時row已經因為reloadData而變少了，故deleteSection時會發生數量不對
- ✅ 4.點選cell進入到edit頁面。返回上一頁後如果點選標籤，會報錯，說標籤頁面的型別無法轉型成編輯頁面的型別 -> 已用Optional Binding檢驗是否為正確轉型的controller型別，不是的話就不會轉型
- ✅ 5.點選表格會進入修改畫面，回到上一頁後按下新增，仍然會變成修改畫面 -> 自定義一個變數isCellSelected，點選cell時他變true，返回時他會變false，
-    點選表格後程式跑的順序：
-    點選cell(此時馬上將isCellSelected變true)；若點選新增紐，則isCellSelected維持false ->
-    prepare(確認isCellSelected狀態，決定要修改還是新增) ->
-    下一頁按done ->
-    下一頁的prepare ->
-    unwindSegue(根據isCellSelected決定要新增還是修改) ->
-    ViewWillAppear(將isCellSelected變回false)
- 
- ✅ 6.篩選器可以作用，換segment後篩選器會恢復原狀 -> 使用enum定義func，並新增一個變數儲存目前使用的方法，以辨識需不需要做篩選
- ✅ 7.照片無法呈現中文檔名 -> 用url.removeAddpercentage解碼
- ✅ 8.標籤選擇後如果到編輯頁，再回到上一頁時，最自動勾選取消標籤的按鈕 -> 再tagController新增function可以自動更新打勾，並作用在viewWillApear裡
- ✅ 9.tag已選取狀態，按下tag後不會立即更新table -> 在按鈕的功能裡面定義reloadData
- ✅ 10.搜尋後，若找到cell，在按下起她segment後都會出現 -> 因為當初把顯示的item分成showedItems與searchingItems兩類，當tableView因為isSearching為true時會抓searchingItems的資料，但是按下segment後更新的function是以showedItems為主，所以不會更新到searchingItems的資料，因此我把所有顯示的變動都改在showedItems上，不額外區分searchingItems。
-     此外也定義一個更新搜尋的function，並作用在按下segment後更新的function裡，這樣子就可以把搜尋的結果都更新在showedItems。
- ✅ 11. cell點了以後會呈現空白的 -> 我在cellDidSelected的function寫下isCellSelected = true，但是在跑這邊之前會先跑prepare，所以prepare會偵測false，故使用willSelectRowAt
- 12. 客製化出現的畫面時，cell比例不對
- ✅ 13.headerView跟cell黏再一起 -> 再cell裡額外新增一個view來裝物件，這個view可以小一點，再藉由顏色設定就可以製造出cell跟headerView有空隙的感覺
- ✅ 14. 刪掉過期物品後，如果本來在過期物品按鈕上有紅字，他不會消失 -> 在刪除的func裡設定，當expired裡的物品為nil時，改變按鈕的UI
- 15. 我在過期頁面輸入以下程式碼：view.frame.origin.y = view.frame.origin.y + 50
-，結果執行後會無限跑viewDidLayoutSubViews
- 
- 16. 彈出鍵盤時畫面要上移，但無法取得元件的真實位置，因為他們被包在stackView裡面 -> 利用座標轉換將textField的座標從自身轉換為View。textField.convert(textField.frame.origin, to: view)
- 
- 目標：
- ✅ 1.寫UIAction的功能，能夠同時篩選tag以及在不同segment切換也能顯示
- ✅ 2.建好searchBar元件，但尚未建構功能
- ✅ 3.到期提醒
- 4. autoLayout
- ✅ 5. 限定只有直式
- 
- 改善：
- 選擇showedItems那邊可以再簡化，不用落落長
- 篩選目前是以名字篩選，要是使用者輸入兩筆一樣名字的物品會出錯
- */
