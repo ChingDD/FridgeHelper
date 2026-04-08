@@ -13,8 +13,14 @@ import BackgroundTasks
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     let backgroundTaskID = "com.jefflin.FridgeHelper.checkExpired"
+    var sharedStack: SwiftDataStack?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        do {
+            sharedStack = try SwiftDataStack()
+        } catch {
+            fatalError("SwiftData 初始化失敗: \(error)")
+        }
         //sleep(3)
         print("家目錄：\(NSHomeDirectory())")
         //Set Navigation UI
@@ -138,10 +144,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
     
     func planAllItemsExpirationNotification() {
+        guard let stack = sharedStack else { return }
         Task { @MainActor in
-            guard let stack = try? SwiftDataStack(),
-                  let items = try? await SwiftDataItemRepository(container: stack.container).fetch(),
-                   !items.isEmpty else { return }
+            guard let items = try? await SwiftDataItemRepository(container: stack.container).fetch(),
+                  !items.isEmpty else { return }
             // 在 ModelContext 還有效時，先將值型別資料複製出來，避免 context 釋放後 crash
             let snapshots = items.map { (name: $0.name, timeStamp: $0.timeStamp, expiryDate: $0.expiryDate) }
             for snapshot in snapshots {

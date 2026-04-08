@@ -25,14 +25,12 @@ class LunchingViewController: UIViewController {
     }
 
     private func configViewModel() {
-        do {
-            let stack = try SwiftDataStack()
-            let repository = SwiftDataItemRepository(container: stack.container)
-            sharedTagViewModel = TagViewModel(repository: repository)
-            sharedMainViewModel = MainViewModel(tagViewModel: sharedTagViewModel, local: repository)
-        } catch {
-            printInfo("Create SwiftData Repository Error: \(error)")
+        guard let stack = (UIApplication.shared.delegate as? AppDelegate)?.sharedStack else {
+            fatalError("SharedStack 尚未初始化")
         }
+        let repository = SwiftDataItemRepository(container: stack.container)
+        sharedTagViewModel = TagViewModel(repository: repository)
+        sharedMainViewModel = MainViewModel(tagViewModel: sharedTagViewModel, local: repository)
     }
 
     // MARK: - Launch Animation

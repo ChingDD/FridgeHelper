@@ -30,15 +30,16 @@ class MainTableViewController: UITableViewController {
         super.viewDidLoad()
 
         // Temporary guard: allow standalone launch without injection
-        if viewModel == nil, let stack = try? SwiftDataStack() {
-            let repo = SwiftDataItemRepository(container: stack.container)
-            let tempTag = TagViewModel(repository: repo)
-            tagViewModel = tempTag
-            viewModel = MainViewModel(tagViewModel: tempTag, local: repo)
-        }
-        if tagViewModel == nil, let stack = try? SwiftDataStack() {
-            let repo = SwiftDataItemRepository(container: stack.container)
-            tagViewModel = TagViewModel(repository: repo)
+        if let stack = (UIApplication.shared.delegate as? AppDelegate)?.sharedStack {
+            if viewModel == nil {
+                let repo = SwiftDataItemRepository(container: stack.container)
+                let tempTag = TagViewModel(repository: repo)
+                tagViewModel = tempTag
+                viewModel = MainViewModel(tagViewModel: tempTag, local: repo)
+            }
+            if tagViewModel == nil {
+                tagViewModel = TagViewModel(repository: SwiftDataItemRepository(container: stack.container))
+            }
         }
 
         viewModel.notificationDelegate = self

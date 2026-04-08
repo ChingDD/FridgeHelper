@@ -19,14 +19,8 @@ class TagTableViewController: UITableViewController {
         title = "標籤管理"
 
         // Temporary guard: allow standalone launch without injection
-        if tagViewModel == nil {
-            do {
-                let stack = try SwiftDataStack()
-                let repo = SwiftDataItemRepository(container: stack.container)
-                tagViewModel = TagViewModel(repository: repo)
-            } catch {
-                printInfo("Generate SwiftData stack failed: \(error)")
-            }
+        if tagViewModel == nil, let stack = (UIApplication.shared.delegate as? AppDelegate)?.sharedStack {
+            tagViewModel = TagViewModel(repository: SwiftDataItemRepository(container: stack.container))
         }
 
         bindViewModel()

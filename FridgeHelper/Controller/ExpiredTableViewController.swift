@@ -27,10 +27,9 @@ class ExpiredTableViewController: UITableViewController {
         title = "即將過期的食品！"
 
         // Temporary guard: allow standalone launch without injection
-        if viewModel == nil, let stack = try? SwiftDataStack() {
+        if viewModel == nil, let stack = (UIApplication.shared.delegate as? AppDelegate)?.sharedStack {
             let repo = SwiftDataItemRepository(container: stack.container)
-            let tempTag = TagViewModel(repository: repo)
-            viewModel = MainViewModel(tagViewModel: tempTag, local: repo)
+            viewModel = MainViewModel(tagViewModel: TagViewModel(repository: repo), local: repo)
         }
 
         bindViewModel()
