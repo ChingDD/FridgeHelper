@@ -187,8 +187,7 @@ class MainTableViewController: UITableViewController {
             }
         }
 
-        if let navVC = segue.destination as? UINavigationController,
-           let tagVC = navVC.viewControllers.first as? TagTableViewController {
+        if let tagVC = segue.destination as? TagTableViewController {
             tagVC.tagViewModel = tagViewModel
         }
 
