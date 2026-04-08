@@ -50,22 +50,48 @@ class MainViewModel {
 
     let tableUpdateEvent = PassthroughSubject<TableUpdateEvent, Never>()
 
+    // Repository
+    let localRepository: ItemRepositoryProtocol
+
     // Private state
     private var savedItems: [Item] = []
     private var cancellables = Set<AnyCancellable>()
-    weak var notificationDelegate: NotificationManagerDelegate?
+    private var initialNotificationsScheduled = false
+
+    weak var notificationDelegate: NotificationManagerDelegate? {
+        didSet {
+            guard notificationDelegate != nil, !initialNotificationsScheduled else { return }
+            initialNotificationsScheduled = true
+            for item in savedItems {
+                notificationDelegate?.rescheduleNotification(for: item)
+            }
+        }
+    }
 
     private let tagViewModel: TagViewModel
 
-    init(tagViewModel: TagViewModel) {
+    init(tagViewModel: TagViewModel, local: ItemRepositoryProtocol) {
         self.tagViewModel = tagViewModel
+        self.localRepository = local
         loadItems()
         setupPipeline()
     }
 
     private func loadItems() {
-        savedItems = FileMgr.shared.fetchItems() ?? []
-        updateDerivedState()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let items = (try? await self.localRepository.fetch()) ?? []
+            self.savedItems = items
+            self.updateDerivedState()
+
+            // Schedule initial notifications if delegate is already set
+            if !self.initialNotificationsScheduled, self.notificationDelegate != nil {
+                self.initialNotificationsScheduled = true
+                for item in self.savedItems {
+                    self.notificationDelegate?.rescheduleNotification(for: item)
+                }
+            }
+        }
     }
 
     private func setupPipeline() {
@@ -124,7 +150,7 @@ class MainViewModel {
 
     func addItem(_ item: Item) {
         savedItems.insert(item, at: 0)
-        persist()
+        Task { try? await localRepository.add(item: item) }
         notificationDelegate?.rescheduleNotification(for: item)
         updateDerivedState()
         tableUpdateEvent.send(.reload)
@@ -134,7 +160,7 @@ class MainViewModel {
         guard displayedIndex < displayedItems.count else { return }
         let item = displayedItems[displayedIndex]
         savedItems.removeAll { $0.timeStamp == item.timeStamp }
-        persist()
+        Task { try? await localRepository.delete(item: item) }
         notificationDelegate?.removeNotifications(for: item)
         updateDerivedState()
         tableUpdateEvent.send(.deleteSection(displayedIndex))
@@ -143,15 +169,23 @@ class MainViewModel {
     func updateItem(at displayedIndex: Int, with newItem: Item) {
         guard displayedIndex < displayedItems.count else { return }
         let oldItem = displayedItems[displayedIndex]
-        guard let savedIndex = savedItems.firstIndex(where: { $0.timeStamp == oldItem.timeStamp }) else { return }
-        savedItems[savedIndex] = newItem
-        persist()
+        guard savedItems.contains(where: { $0.timeStamp == oldItem.timeStamp }) else { return }
+
+        // Update managed object properties in-place (SwiftData tracks changes via @Model)
+        oldItem.name = newItem.name
+        oldItem.number = newItem.number
+        oldItem.expiryDate = newItem.expiryDate
+        oldItem.storeCondition = newItem.storeCondition
+        oldItem.memo = newItem.memo
+        oldItem.tag = newItem.tag
+        oldItem.image = newItem.image
+
+        Task { try? await localRepository.update(item: oldItem) }
         notificationDelegate?.removeNotifications(for: oldItem)
-        notificationDelegate?.rescheduleNotification(for: newItem)
+        notificationDelegate?.rescheduleNotification(for: oldItem)
         updateDerivedState()
-        // Use reloadSection only if item remains at same index after filtering
         if displayedIndex < displayedItems.count,
-           displayedItems[displayedIndex].timeStamp == newItem.timeStamp {
+           displayedItems[displayedIndex].timeStamp == oldItem.timeStamp {
             tableUpdateEvent.send(.reloadSection(displayedIndex))
         } else {
             tableUpdateEvent.send(.reload)
@@ -162,13 +196,5 @@ class MainViewModel {
         let expired = savedItems.filter { $0.expiryDate.timeIntervalSinceNow <= 259200 }
         expiredItems = expired
         expiredCount = expired.count
-    }
-
-    private func persist() {
-        if savedItems.isEmpty {
-            FileMgr.shared.removeItems()
-        } else {
-            FileMgr.shared.saveItems(savedItems)
-        }
     }
 }

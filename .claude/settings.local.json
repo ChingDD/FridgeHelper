@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__plugin_Notion_notion__notion-search",
+      "mcp__plugin_Notion_notion__notion-create-pages",
+      "mcp__plugin_Notion_notion__notion-fetch",
+      "mcp__plugin_Notion_notion__notion-update-page"
+    ]
+  }
+}

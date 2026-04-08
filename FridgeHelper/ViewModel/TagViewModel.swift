@@ -19,23 +19,23 @@ class TagViewModel {
 
     let tableUpdateEvent = PassthroughSubject<TagTableUpdateEvent, Never>()
 
-    init() {
+    private let repository: TagRepositoryProtocol
+
+    init(repository: TagRepositoryProtocol) {
+        self.repository = repository
         loadTags()
     }
 
     func loadTags() {
         let defaultTags = ["蔬菜", "水果", "肉類", "魚類"]
-        if let fetched = FileMgr.shared.fetchTags() {
-            tags = fetched
-        } else {
-            tags = defaultTags
-        }
+        let fetched = repository.fetchTags()
+        tags = fetched.isEmpty ? defaultTags : fetched
     }
 
     func addTag(_ name: String) {
         guard !name.isEmpty else { return }
         tags.append(name)
-        FileMgr.shared.saveTags(tags: tags)
+        repository.saveTags(tags)
         tableUpdateEvent.send(.reload)
     }
 
@@ -43,7 +43,7 @@ class TagViewModel {
         guard index < tags.count else { return }
         let removed = tags[index]
         tags.remove(at: index)
-        FileMgr.shared.saveTags(tags: tags)
+        repository.saveTags(tags)
         // If the removed tag was selected, clear selection
         if selectedTag == removed {
             selectedTag = nil

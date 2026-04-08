@@ -14,17 +14,30 @@ class LunchingViewController: UIViewController {
     var dotNumbers = 0
 
     // Shared ViewModel instances — created once here and injected down the stack
-    private let sharedTagViewModel = TagViewModel()
-    private lazy var sharedMainViewModel = MainViewModel(tagViewModel: sharedTagViewModel)
+
+    private var sharedTagViewModel: TagViewModel!
+    private var sharedMainViewModel: MainViewModel!
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        setlaunchScreenImageAnimation()
+        configViewModel()
+        setLaunchScreenImageAnimation()
+    }
+
+    private func configViewModel() {
+        do {
+            let stack = try SwiftDataStack()
+            let repository = SwiftDataItemRepository(container: stack.container)
+            sharedTagViewModel = TagViewModel(repository: repository)
+            sharedMainViewModel = MainViewModel(tagViewModel: sharedTagViewModel, local: repository)
+        } catch {
+            printInfo("Create SwiftData Repository Error: \(error)")
+        }
     }
 
     // MARK: - Launch Animation
 
-    private func setlaunchScreenImageAnimation() {
+    private func setLaunchScreenImageAnimation() {
         let launchStoryboard = UIStoryboard(name: "LaunchScreen", bundle: nil)
         launchScreen = launchStoryboard.instantiateInitialViewController()
         view.addSubview(launchScreen!.view)

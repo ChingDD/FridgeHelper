@@ -7,6 +7,7 @@
 
 import UIKit
 import Combine
+import SwiftData
 
 class TagTableViewController: UITableViewController {
     var tagViewModel: TagViewModel!
@@ -18,7 +19,15 @@ class TagTableViewController: UITableViewController {
         title = "標籤管理"
 
         // Temporary guard: allow standalone launch without injection
-        if tagViewModel == nil { tagViewModel = TagViewModel() }
+        if tagViewModel == nil {
+            do {
+                let stack = try SwiftDataStack()
+                let repo = SwiftDataItemRepository(container: stack.container)
+                tagViewModel = TagViewModel(repository: repo)
+            } catch {
+                printInfo("Generate SwiftData stack failed: \(error)")
+            }
+        }
 
         bindViewModel()
     }

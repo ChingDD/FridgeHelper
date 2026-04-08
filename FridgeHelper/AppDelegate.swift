@@ -69,76 +69,84 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         print("Removed notifications for item: \(item.name)")
     }
     
-    // 為單一物品安排通知
+    // 為單一物品安排通知（供外部直接傳入 Item 物件時使用）
     func scheduleNotification(for item: Item) {
+        scheduleNotification(name: item.name, timeStamp: item.timeStamp, expiryDate: item.expiryDate)
+    }
+
+    // 實際安排通知的核心方法，接受值型別，避免 SwiftData ModelContext 釋放後 crash
+    private func scheduleNotification(name: String, timeStamp: String?, expiryDate: Date) {
         let center = UNUserNotificationCenter.current()
         let calendar = Calendar.current
         let now = Date()
-        
-        let expiryDate = item.expiryDate
+
         let daysUntilExpiry = calendar.dateComponents([.day], from: now, to: expiryDate).day ?? 0
-        
+
         // 只為未過期的物品安排通知
         if daysUntilExpiry >= 0 {
-            
+
             // 1. 安排過期前三天的通知
             if daysUntilExpiry >= 3 {
                 let threeDaysContent = UNMutableNotificationContent()
                 threeDaysContent.title = "食物即將過期"
-                threeDaysContent.body = "\(item.name) 還有3天過期，記得及時處理！"
+                threeDaysContent.body = "\(name) 還有3天過期，記得及時處理！"
                 threeDaysContent.sound = .default
-                threeDaysContent.userInfo = ["item-name": item.name, "expiry-date": item.expiryDate, "notification-type": "three-days-before"]
-                
+                threeDaysContent.userInfo = ["item-name": name, "expiry-date": expiryDate, "notification-type": "three-days-before"]
+
                 let threeDaysBeforeExpiry = calendar.date(byAdding: .day, value: -3, to: expiryDate)!
                 let threeDaysComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: threeDaysBeforeExpiry)
-                
+
                 let threeDaysTrigger = UNCalendarNotificationTrigger(dateMatching: threeDaysComponents, repeats: false)
                 let threeDaysRequest = UNNotificationRequest(
-                    identifier: "three-days-\(item.name)-\(item.timeStamp ?? UUID().uuidString)",
+                    identifier: "three-days-\(name)-\(timeStamp ?? UUID().uuidString)",
                     content: threeDaysContent,
                     trigger: threeDaysTrigger
                 )
-                
+
                 center.add(threeDaysRequest) { error in
                     if let error = error {
-                        print("Error scheduling 3-day notification for \(item.name): \(error)")
+                        print("Error scheduling 3-day notification for \(name): \(error)")
                     } else {
-                        print("3-day notification scheduled for \(item.name)")
+                        print("3-day notification scheduled for \(name)")
                     }
                 }
             }
-            
+
             // 2. 安排過期當天的通知
             let expiryDayContent = UNMutableNotificationContent()
             expiryDayContent.title = "食物今天過期！"
-            expiryDayContent.body = "\(item.name) 今天過期，請立即處理！"
+            expiryDayContent.body = "\(name) 今天過期，請立即處理！"
             expiryDayContent.sound = .default
-            expiryDayContent.userInfo = ["item-name": item.name, "expiry-date": item.expiryDate, "notification-type": "expiry-day"]
-            
+            expiryDayContent.userInfo = ["item-name": name, "expiry-date": expiryDate, "notification-type": "expiry-day"]
+
             let expiryDayComponents = calendar.dateComponents([.year, .month, .day], from: expiryDate)
             let expiryDayTrigger = UNCalendarNotificationTrigger(dateMatching: expiryDayComponents, repeats: false)
             let expiryDayRequest = UNNotificationRequest(
-                identifier: "expiry-day-\(item.name)-\(item.timeStamp ?? UUID().uuidString)",
+                identifier: "expiry-day-\(name)-\(timeStamp ?? UUID().uuidString)",
                 content: expiryDayContent,
                 trigger: expiryDayTrigger
             )
-            
+
             center.add(expiryDayRequest) { error in
                 if let error = error {
-                    print("Error scheduling expiry-day notification for \(item.name): \(error)")
+                    print("Error scheduling expiry-day notification for \(name): \(error)")
                 } else {
-                    print("Expiry-day notification scheduled for \(item.name)")
+                    print("Expiry-day notification scheduled for \(name)")
                 }
             }
         }
     }
     
     func planAllItemsExpirationNotification() {
-        let items = FileMgr.shared.fetchItems()
-        guard let items, !items.isEmpty else { return }
-
-        for item in items {
-            scheduleNotification(for: item)
+        Task { @MainActor in
+            guard let stack = try? SwiftDataStack(),
+                  let items = try? await SwiftDataItemRepository(container: stack.container).fetch(),
+                   !items.isEmpty else { return }
+            // 在 ModelContext 還有效時，先將值型別資料複製出來，避免 context 釋放後 crash
+            let snapshots = items.map { (name: $0.name, timeStamp: $0.timeStamp, expiryDate: $0.expiryDate) }
+            for snapshot in snapshots {
+                self.scheduleNotification(name: snapshot.name, timeStamp: snapshot.timeStamp, expiryDate: snapshot.expiryDate)
+            }
         }
     }
 }
