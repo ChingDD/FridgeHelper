@@ -94,6 +94,16 @@ class EditViewController: UIViewController {
                 self?.doneBtn.isEnabled = isValid
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: UITextField.textDidChangeNotification, object: nameTextField)
+            .compactMap { ($0.object as? UITextField)?.text }
+            .assign(to: \.name, on: editViewModel)
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: UITextField.textDidChangeNotification, object: numberTextField)
+            .compactMap { ($0.object as? UITextField)?.text }
+            .assign(to: \.quantity, on: editViewModel)
+            .store(in: &cancellables)
     }
 
     // MARK: - Keyboard Handling
