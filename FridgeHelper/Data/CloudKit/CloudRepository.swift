@@ -38,12 +38,16 @@ class CloudRepository: ItemRepositoryProtocol {
 
     func add(item: Item) async throws {
         try await zoneMgr.ensureZoneExists()
-        let record = toRecord(item)
+        let (record, tempURL) = toRecord(item)
+        defer {
+            tempURL.map { try? FileManager.default.removeItem(at: $0) }
+        }
         try await database.save(record)
     }
 
     func update(item: Item) async throws {
-        let record = toRecord(item)
+        let (record, tempURL) = toRecord(item)
+        defer { tempURL.map { try? FileManager.default.removeItem(at: $0) } }
         try await database.modifyRecords(saving: [record], deleting: [], savePolicy: .allKeys)
     }
 
@@ -59,7 +63,7 @@ class CloudRepository: ItemRepositoryProtocol {
         return CKRecord.ID(recordName: name, zoneID: zoneMgr.zoneID)
     }
 
-    private func toRecord(_ item: Item) -> CKRecord {
+    private func toRecord(_ item: Item) -> (CKRecord, URL?) {
         let record = CKRecord(recordType: "Item", recordID: recordID(for: item))
         record["name"] = item.name
         record["quantity"] = item.number as CKRecordValue
@@ -69,14 +73,15 @@ class CloudRepository: ItemRepositoryProtocol {
         record["tag"] = item.tag as CKRecordValue?
         record["timestamp"] = item.timeStamp as CKRecordValue?
 
+        var tempURL: URL? = nil
         if let imageData = item.image {
-            let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString)
-            try? imageData.write(to: tempURL)
-            record["image"] = CKAsset(fileURL: tempURL)
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            try? imageData.write(to: url)
+            record["image"] = CKAsset(fileURL: url)
+            tempURL = url
         }
 
-        return record
+        return (record, tempURL)
     }
 
     private func toItem(_ record: CKRecord) -> Item {
