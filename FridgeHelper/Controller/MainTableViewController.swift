@@ -90,7 +90,11 @@ class MainTableViewController: UITableViewController {
                 case .reload:
                     self?.tableView.reloadData()
                 case .deleteSection(let i):
-                    self?.tableView.deleteSections(IndexSet(integer: i), with: .fade)
+                    if self?.viewModel.displayedItems.isEmpty == true {
+                        self?.tableView.reloadData()
+                    } else {
+                        self?.tableView.deleteSections(IndexSet(integer: i), with: .fade)
+                    }
                 case .reloadSection(let i):
                     self?.tableView.reloadRows(at: [IndexPath(row: 0, section: i)], with: .automatic)
                 }
