@@ -150,20 +150,32 @@ class MainViewModel {
 
     func addItem(_ item: Item) {
         savedItems.insert(item, at: 0)
-        Task { try? await localRepository.add(item: item) }
-        notificationDelegate?.rescheduleNotification(for: item)
-        updateDerivedState()
-        tableUpdateEvent.send(.reload)
+        Task {
+            do {
+                try await localRepository.add(item: item)
+                notificationDelegate?.rescheduleNotification(for: item)
+                updateDerivedState()
+                tableUpdateEvent.send(.reload)
+            } catch {
+                printInfo("Add Item Error: \(error)")
+            }
+        }
     }
 
     func removeItem(at displayedIndex: Int) {
         guard displayedIndex < displayedItems.count else { return }
         let item = displayedItems[displayedIndex]
         savedItems.removeAll { $0.timeStamp == item.timeStamp }
-        Task { try? await localRepository.delete(item: item) }
-        notificationDelegate?.removeNotifications(for: item)
-        updateDerivedState()
-        tableUpdateEvent.send(.deleteSection(displayedIndex))
+        Task {
+            do {
+                try await localRepository.delete(item: item)
+                notificationDelegate?.removeNotifications(for: item)
+                updateDerivedState()
+                tableUpdateEvent.send(.deleteSection(displayedIndex))
+            } catch {
+                printInfo("Remove Item Error: \(error)")
+            }
+        }
     }
 
     func updateItem(at displayedIndex: Int, with newItem: Item) {
@@ -180,15 +192,21 @@ class MainViewModel {
         oldItem.tag = newItem.tag
         oldItem.image = newItem.image
 
-        Task { try? await localRepository.update(item: oldItem) }
-        notificationDelegate?.removeNotifications(for: oldItem)
-        notificationDelegate?.rescheduleNotification(for: oldItem)
-        updateDerivedState()
-        if displayedIndex < displayedItems.count,
-           displayedItems[displayedIndex].timeStamp == oldItem.timeStamp {
-            tableUpdateEvent.send(.reloadSection(displayedIndex))
-        } else {
-            tableUpdateEvent.send(.reload)
+        Task {
+            do {
+                try await localRepository.update(item: oldItem)
+                notificationDelegate?.removeNotifications(for: oldItem)
+                notificationDelegate?.rescheduleNotification(for: oldItem)
+                updateDerivedState()
+                if displayedIndex < displayedItems.count,
+                   displayedItems[displayedIndex].timeStamp == oldItem.timeStamp {
+                    tableUpdateEvent.send(.reloadSection(displayedIndex))
+                } else {
+                    tableUpdateEvent.send(.reload)
+                }
+            } catch {
+                printInfo("Update Item Error: \(error)")
+            }
         }
     }
 
