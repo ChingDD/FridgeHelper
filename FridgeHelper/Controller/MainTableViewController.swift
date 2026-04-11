@@ -8,6 +8,7 @@
 import UIKit
 import UserNotifications
 import Combine
+import CloudKit
 
 class MainTableViewController: UITableViewController {
 
@@ -20,6 +21,8 @@ class MainTableViewController: UITableViewController {
     // Injected by LunchingViewController
     var viewModel: MainViewModel!
     var tagViewModel: TagViewModel!
+    /// 僅 Owner 裝置注入；nil 表示 Participant，不顯示分享按鈕
+    var shareManager: SharingRepositoryProtocol?
 
     var isCellSelected = false
     private var cancellables = Set<AnyCancellable>()
@@ -63,6 +66,17 @@ class MainTableViewController: UITableViewController {
         tagFilterBtn.showsMenuAsPrimaryAction = true
 
         title = "FridgeHelper"
+
+        // 分享按鈕：僅 Owner 裝置顯示
+        if shareManager != nil {
+            let shareBtn = UIBarButtonItem(
+                image: UIImage(systemName: "person.crop.circle.badge.plus"),
+                style: .plain,
+                target: self,
+                action: #selector(shareTapped)
+            )
+            navigationItem.leftBarButtonItem = shareBtn
+        }
 
         bindViewModel()
 
@@ -310,6 +324,49 @@ extension MainTableViewController: UISearchResultsUpdating {
     func updateSearchResults(for searchController: UISearchController) {
         viewModel.searchKeyword = searchController.searchBar.text ?? ""
     }
+}
+
+// MARK: - CloudKit Sharing
+extension MainTableViewController: UICloudSharingControllerDelegate {
+
+    @objc private func shareTapped() {
+        guard let shareManager else { return }
+
+        Future<(CKShare, CKContainer), Error> { promise in
+            Task {
+                do {
+                    promise(.success(try await shareManager.fetchOrCreateShare()))
+                } catch {
+                    promise(.failure(error))
+                }
+            }
+        }
+        .receive(on: RunLoop.main)
+        .sink(
+            receiveCompletion: { [weak self] completion in
+                guard case .failure(let error) = completion else { return }
+                let alert = UIAlertController(title: "分享失敗", message: error.localizedDescription, preferredStyle: .alert)
+                alert.addAction(UIAlertAction(title: "確定", style: .default))
+                self?.present(alert, animated: true)
+            },
+            receiveValue: { [weak self] share, container in
+                guard let self else { return }
+                let sharingController = UICloudSharingController(share: share, container: container)
+                sharingController.delegate = self
+                sharingController.availablePermissions = [.allowReadWrite, .allowPrivate]
+                self.present(sharingController, animated: true)
+            }
+        )
+        .store(in: &cancellables)
+    }
+
+    func cloudSharingController(_ csc: UICloudSharingController, failedToSaveShareWithError error: Error) {
+        let alert = UIAlertController(title: "儲存分享失敗", message: error.localizedDescription, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "確定", style: .default))
+        present(alert, animated: true)
+    }
+
+    func itemTitle(for csc: UICloudSharingController) -> String? { "我的冰箱" }
 }
 
 // MARK: - NotificationManagerDelegate
