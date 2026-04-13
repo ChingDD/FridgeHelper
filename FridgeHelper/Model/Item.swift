@@ -33,8 +33,11 @@ class Item {
     var tag: String?
     @Attribute(.externalStorage) var image: Data?
     var timeStamp: String?
+    /// CloudKit zone 的擁有者 ID。nil 或等於 CKCurrentUserDefaultName 表示自己的 private zone；
+    /// 其他值表示來自他人共享的 zone，寫回時需走 sharedCloudDatabase。
+    var zoneOwnerName: String?
 
-    init(name: String, number: Int, expiryDate: Date, storeCondition: Int, memo: String? = nil, tag:   String? = nil, image: Data? = nil, timeStamp: String? = nil) {
+    init(name: String, number: Int, expiryDate: Date, storeCondition: Int, memo: String? = nil, tag: String? = nil, image: Data? = nil, timeStamp: String? = nil, zoneOwnerName: String? = nil) {
         self.name = name
         self.number = number
         self.expiryDate = expiryDate
@@ -43,6 +46,7 @@ class Item {
         self.tag = tag
         self.image = image
         self.timeStamp = timeStamp
+        self.zoneOwnerName = zoneOwnerName
     }
 }
 

@@ -233,6 +233,7 @@ class SyncCoordinator {
         let memo = record["memo"] as? String
         let tag = record["tag"] as? String
         let timeStamp = record["timestamp"] as? String
+        let zoneOwnerName = record.recordID.zoneID.ownerName
 
         var imageData: Data? = nil
         if let asset = record["image"] as? CKAsset, let url = asset.fileURL {
@@ -247,7 +248,8 @@ class SyncCoordinator {
             memo: memo,
             tag: tag,
             image: imageData,
-            timeStamp: timeStamp
+            timeStamp: timeStamp,
+            zoneOwnerName: zoneOwnerName
         )
     }
 }

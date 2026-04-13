@@ -14,8 +14,23 @@ class CloudRepository: ItemRepositoryProtocol {
 
     private let ckContainer: CKContainer
 
-    private var database: CKDatabase {
-        ckContainer.privateCloudDatabase
+    private var privateDatabase: CKDatabase { ckContainer.privateCloudDatabase }
+    private var sharedDatabase: CKDatabase { ckContainer.sharedCloudDatabase }
+
+    /// item 的 zoneOwnerName 非當前使用者 → 來自共享 zone → 走 sharedDB
+    private func database(for item: Item) -> CKDatabase {
+        guard let owner = item.zoneOwnerName, owner != CKCurrentUserDefaultName else {
+            return privateDatabase
+        }
+        return sharedDatabase
+    }
+
+    /// 根據 item 的 zoneOwnerName 建立正確的 zone ID
+    private func zoneID(for item: Item) -> CKRecordZone.ID {
+        guard let owner = item.zoneOwnerName, owner != CKCurrentUserDefaultName else {
+            return zoneMgr.zoneID
+        }
+        return CKRecordZone.ID(zoneName: zoneMgr.zoneID.zoneName, ownerName: owner)
     }
 
     init(zoneMgr: ZoneManaging, containerIdentifier: String = "iCloud.FridgeHelper") {
@@ -28,7 +43,7 @@ class CloudRepository: ItemRepositoryProtocol {
     func fetch() async throws -> [Item] {
         try await zoneMgr.ensureZoneExists()
         let query = CKQuery(recordType: "Item", predicate: NSPredicate(value: true))
-        let (matchResults, _) = try await database.records(matching: query, inZoneWith: zoneMgr.zoneID)
+        let (matchResults, _) = try await privateDatabase.records(matching: query, inZoneWith: zoneMgr.zoneID)
 
         return matchResults.compactMap { _, result in
             guard let record = try? result.get() else { return nil }
@@ -37,30 +52,29 @@ class CloudRepository: ItemRepositoryProtocol {
     }
 
     func add(item: Item) async throws {
+        // 新增 item 預設寫入自己的 private zone，不需走 sharedDB
         try await zoneMgr.ensureZoneExists()
         let (record, tempURL) = toRecord(item)
-        defer {
-            tempURL.map { try? FileManager.default.removeItem(at: $0) }
-        }
-        try await database.save(record)
+        defer { tempURL.map { try? FileManager.default.removeItem(at: $0) } }
+        try await privateDatabase.save(record)
     }
 
     func update(item: Item) async throws {
         let (record, tempURL) = toRecord(item)
         defer { tempURL.map { try? FileManager.default.removeItem(at: $0) } }
-        try await database.modifyRecords(saving: [record], deleting: [], savePolicy: .allKeys)
+        try await database(for: item).modifyRecords(saving: [record], deleting: [], savePolicy: .allKeys)
     }
 
     func delete(item: Item) async throws {
         let id = recordID(for: item)
-        try await database.deleteRecord(withID: id)
+        try await database(for: item).deleteRecord(withID: id)
     }
 
     // MARK: - Mapping
 
     private func recordID(for item: Item) -> CKRecord.ID {
         let name = item.timeStamp ?? UUID().uuidString
-        return CKRecord.ID(recordName: name, zoneID: zoneMgr.zoneID)
+        return CKRecord.ID(recordName: name, zoneID: zoneID(for: item))
     }
 
     private func toRecord(_ item: Item) -> (CKRecord, URL?) {
@@ -92,6 +106,7 @@ class CloudRepository: ItemRepositoryProtocol {
         let memo = record["memo"] as? String
         let tag = record["tag"] as? String
         let timeStamp = record["timestamp"] as? String
+        let zoneOwnerName = record.recordID.zoneID.ownerName
 
         var imageData: Data? = nil
         if let asset = record["image"] as? CKAsset, let url = asset.fileURL {
@@ -106,7 +121,8 @@ class CloudRepository: ItemRepositoryProtocol {
             memo: memo,
             tag: tag,
             image: imageData,
-            timeStamp: timeStamp
+            timeStamp: timeStamp,
+            zoneOwnerName: zoneOwnerName
         )
     }
 }
