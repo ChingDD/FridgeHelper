@@ -7,6 +7,7 @@
 
 import UIKit
 import BackgroundTasks
+import CloudKit
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
@@ -47,6 +48,17 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         center.setBadgeCount(0)
     }
 
-
+    func windowScene(_ windowScene: UIWindowScene, userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata) {
+        let container = CKContainer(identifier: cloudKitShareMetadata.containerIdentifier)
+        Task {
+           do {
+               try await container.accept(cloudKitShareMetadata)
+               print("container accept")
+           } catch {
+               print("container accept fail")
+           }
+       }
+    }
+    
 }
 
