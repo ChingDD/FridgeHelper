@@ -51,13 +51,20 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func windowScene(_ windowScene: UIWindowScene, userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata) {
         let container = CKContainer(identifier: cloudKitShareMetadata.containerIdentifier)
         Task {
-           do {
-               try await container.accept(cloudKitShareMetadata)
-               print("container accept")
-           } catch {
-               print("container accept fail")
-           }
-       }
+            do {
+                try await container.accept(cloudKitShareMetadata)
+                print("container accept")
+                guard let stack = (UIApplication.shared.delegate as? AppDelegate)?.sharedStack else { return }
+                let syncMgr = SyncCoordinator(
+                    localRepository: SwiftDataItemRepository(container: stack.container),
+                    zoneMgr: ZoneManager()
+                )
+                try await syncMgr.fetchChanges()
+                NotificationCenter.default.post(name: .cloudKitDataDidChange, object: nil)
+            } catch {
+                print("container accept fail: \(error)")
+            }
+        }
     }
     
 }

@@ -14,8 +14,8 @@ class CloudRepository: ItemRepositoryProtocol {
 
     private let ckContainer: CKContainer
 
-    private var privateDatabase: CKDatabase { ckContainer.privateCloudDatabase }
-    private var sharedDatabase: CKDatabase { ckContainer.sharedCloudDatabase }
+    var privateDatabase: CKDatabase { ckContainer.privateCloudDatabase }
+    var sharedDatabase: CKDatabase { ckContainer.sharedCloudDatabase }
 
     /// item 的 zoneOwnerName 非當前使用者 → 來自共享 zone → 走 sharedDB
     private func database(for item: Item) -> CKDatabase {
@@ -53,9 +53,10 @@ class CloudRepository: ItemRepositoryProtocol {
 
     func add(item: Item) async throws {
         // 新增 item 預設寫入自己的 private zone，不需走 sharedDB
-        try await zoneMgr.ensureZoneExists()
+        // toRecord 必須在 await 前呼叫，確保在 caller 的 actor（MainActor）上讀取 @Model 屬性
         let (record, tempURL) = toRecord(item)
         defer { tempURL.map { try? FileManager.default.removeItem(at: $0) } }
+        try await zoneMgr.ensureZoneExists()
         try await privateDatabase.save(record)
     }
 

@@ -28,9 +28,11 @@ class LunchingViewController: UIViewController {
         guard let stack = (UIApplication.shared.delegate as? AppDelegate)?.sharedStack else {
             fatalError("SharedStack 尚未初始化")
         }
-        let repository = SwiftDataItemRepository(container: stack.container)
-        sharedTagViewModel = TagViewModel(repository: repository)
-        sharedMainViewModel = MainViewModel(tagViewModel: sharedTagViewModel, local: repository)
+        let localRepo = SwiftDataItemRepository(container: stack.container)
+        let cloudRepo = CloudRepository(zoneMgr: ZoneManager())
+        let compositeRepo = CompositeRepository(local: localRepo, cloud: cloudRepo)
+        sharedTagViewModel = TagViewModel(repository: localRepo)
+        sharedMainViewModel = MainViewModel(tagViewModel: sharedTagViewModel, local: compositeRepo)
     }
 
     // MARK: - Launch Animation
@@ -67,6 +69,7 @@ class LunchingViewController: UIViewController {
                     }
                     mainVC.viewModel = self.sharedMainViewModel
                     mainVC.tagViewModel = self.sharedTagViewModel
+                    mainVC.shareManager = ShareManager(zoneMgr: ZoneManager())
                     UIView.setAnimationsEnabled(false)
                     self.view.window?.rootViewController = navVC
                     UIView.setAnimationsEnabled(true)

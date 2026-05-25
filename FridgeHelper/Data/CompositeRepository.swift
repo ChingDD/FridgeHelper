@@ -36,7 +36,13 @@ class CompositeRepository: ItemRepositoryProtocol {
 
     func add(item: Item) async throws {
         try await local.add(item: item)
-        Task { try? await cloud.add(item: item) }
+        Task {
+            do {
+                try await cloud.add(item: item)
+            } catch {
+                printInfo("Save To Cloud Failed: \(error)")
+            }
+        }
     }
 
     func update(item: Item) async throws {

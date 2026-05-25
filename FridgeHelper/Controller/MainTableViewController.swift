@@ -35,10 +35,11 @@ class MainTableViewController: UITableViewController {
         // Temporary guard: allow standalone launch without injection
         if let stack = (UIApplication.shared.delegate as? AppDelegate)?.sharedStack {
             if viewModel == nil {
-                let repo = SwiftDataItemRepository(container: stack.container)
-                let tempTag = TagViewModel(repository: repo)
+                let localRepo = SwiftDataItemRepository(container: stack.container)
+                let compositeRepo = CompositeRepository(local: localRepo, cloud: CloudRepository(zoneMgr: ZoneManager()))
+                let tempTag = TagViewModel(repository: localRepo)
                 tagViewModel = tempTag
-                viewModel = MainViewModel(tagViewModel: tempTag, local: repo)
+                viewModel = MainViewModel(tagViewModel: tempTag, local: compositeRepo)
             }
             if tagViewModel == nil {
                 tagViewModel = TagViewModel(repository: SwiftDataItemRepository(container: stack.container))
@@ -90,6 +91,13 @@ class MainTableViewController: UITableViewController {
         tagFilterBtn.menu = buildTagMenu()
         // Refresh expired items in case time has passed
         viewModel.refreshExpiredItems()
+        Task {
+            do {
+                try await (UIApplication.shared.delegate as? AppDelegate)?.syncCloudToLocal()
+            } catch {
+                printInfo("Sync Cloud To Local Fail: \(error)")
+            }
+        }
         isCellSelected = false
     }
 

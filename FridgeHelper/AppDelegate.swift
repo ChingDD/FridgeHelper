@@ -16,11 +16,43 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     var sharedStack: SwiftDataStack?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Create SwiftData Container
         do {
             sharedStack = try SwiftDataStack()
         } catch {
             fatalError("SwiftData 初始化失敗: \(error)")
         }
+
+        // Sync Cloud Data To Local
+        // Plan Notification
+        Task {
+            do {
+                try await syncCloudToLocal()
+                planAllItemsExpirationNotification()
+            } catch {
+                printInfo("Sync Cloud To Local Fail: \(error)")
+            }
+        }
+
+
+        // Registers to receive remote notifications
+        application.registerForRemoteNotifications()
+
+        // Subscribe Cloud Database
+        let zoneMgr = ZoneManager()
+        let cloudDB = CloudRepository(zoneMgr: zoneMgr)
+        let subscriptionMgr = SubscriptionManager(zoneID: zoneMgr.zoneID,
+                                                  privateDB: cloudDB.privateDatabase,
+                                                  sharedDB: cloudDB.sharedDatabase)
+        Task {
+            do {
+                try await zoneMgr.ensureZoneExists()
+                try await subscriptionMgr.subscribe()
+            } catch {
+                printInfo("Subscribe Cloud Database Fail: \(error)")
+            }
+        }
+
         //sleep(3)
         print("家目錄：\(NSHomeDirectory())")
         //Set Navigation UI
@@ -34,7 +66,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         ]
         UINavigationBar.appearance().standardAppearance = navigationBarAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navigationBarAppearance
-        planAllItemsExpirationNotification()
         return true
     }
 
@@ -143,7 +174,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
     }
     
-    func planAllItemsExpirationNotification() {
+    private func planAllItemsExpirationNotification() {
         guard let stack = sharedStack else { return }
         Task { @MainActor in
             guard let items = try? await SwiftDataItemRepository(container: stack.container).fetch(),
@@ -155,5 +186,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
         }
     }
+
+    func syncCloudToLocal() async throws {
+        guard let stack = sharedStack else { return }
+        let syncMgr = SyncCoordinator(localRepository: SwiftDataItemRepository(container: stack.container),
+                                      zoneMgr: ZoneManager())
+
+        try await syncMgr.fetchChanges()
+        NotificationCenter.default.post(name: .cloudKitDataDidChange, object: nil)
+    }
 }
 
+extension Notification.Name {
+    static let cloudKitDataDidChange = Notification.Name("cloudKitDataDidChange")
+}
+
+// Remote Notification
+extension AppDelegate {
+    @MainActor
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable : Any]) async -> UIBackgroundFetchResult {
+        guard userInfo["ck"] != nil else { return .noData }
+        
+        do {
+            try await syncCloudToLocal()
+            return .newData
+        } catch {
+            printInfo("Sync Cloud To Local Fail: \(error)")
+            return .failed
+        }
+    }
+}

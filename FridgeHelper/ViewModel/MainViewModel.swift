@@ -114,6 +114,11 @@ class MainViewModel {
                 self.tableUpdateEvent.send(.reload)
             }
             .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: .cloudKitDataDidChange)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.loadItems() }
+            .store(in: &cancellables)
     }
 
     private func updateDerivedState() {
@@ -150,12 +155,13 @@ class MainViewModel {
 
     func addItem(_ item: Item) {
         savedItems.insert(item, at: 0)
-        Task {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             do {
-                try await localRepository.add(item: item)
-                notificationDelegate?.rescheduleNotification(for: item)
-                updateDerivedState()
-                tableUpdateEvent.send(.reload)
+                try await self.localRepository.add(item: item)
+                self.notificationDelegate?.rescheduleNotification(for: item)
+                self.updateDerivedState()
+                self.tableUpdateEvent.send(.reload)
             } catch {
                 printInfo("Add Item Error: \(error)")
             }
@@ -166,12 +172,13 @@ class MainViewModel {
         guard displayedIndex < displayedItems.count else { return }
         let item = displayedItems[displayedIndex]
         savedItems.removeAll { $0.timeStamp == item.timeStamp }
-        Task {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             do {
-                try await localRepository.delete(item: item)
-                notificationDelegate?.removeNotifications(for: item)
-                updateDerivedState()
-                tableUpdateEvent.send(.deleteSection(displayedIndex))
+                try await self.localRepository.delete(item: item)
+                self.notificationDelegate?.removeNotifications(for: item)
+                self.updateDerivedState()
+                self.tableUpdateEvent.send(.deleteSection(displayedIndex))
             } catch {
                 printInfo("Remove Item Error: \(error)")
             }
@@ -192,17 +199,18 @@ class MainViewModel {
         oldItem.tag = newItem.tag
         oldItem.image = newItem.image
 
-        Task {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             do {
-                try await localRepository.update(item: oldItem)
-                notificationDelegate?.removeNotifications(for: oldItem)
-                notificationDelegate?.rescheduleNotification(for: oldItem)
-                updateDerivedState()
-                if displayedIndex < displayedItems.count,
-                   displayedItems[displayedIndex].timeStamp == oldItem.timeStamp {
-                    tableUpdateEvent.send(.reloadSection(displayedIndex))
+                try await self.localRepository.update(item: oldItem)
+                self.notificationDelegate?.removeNotifications(for: oldItem)
+                self.notificationDelegate?.rescheduleNotification(for: oldItem)
+                self.updateDerivedState()
+                if displayedIndex < self.displayedItems.count,
+                   self.displayedItems[displayedIndex].timeStamp == oldItem.timeStamp {
+                    self.tableUpdateEvent.send(.reloadSection(displayedIndex))
                 } else {
-                    tableUpdateEvent.send(.reload)
+                    self.tableUpdateEvent.send(.reload)
                 }
             } catch {
                 printInfo("Update Item Error: \(error)")
