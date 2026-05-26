@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### High-Level Structure
 FridgeHelper is an iOS app for managing food items in a refrigerator with expiration tracking and notifications.
 
-**Core Architecture Pattern**: MVVM (Model-View-ViewModel) with Singleton data management
+**Core Architecture Pattern**: MVVM (Model-View-ViewModel) with repository-based local persistence and CloudKit sync
 
 ### Key Components
 
@@ -26,10 +26,10 @@ FridgeHelper is an iOS app for managing food items in a refrigerator with expira
 - Storage conditions: 室溫 (room temperature), 冷藏 (refrigerated), 冷凍 (frozen)
 
 **ViewModels** (business logic):
-- `ItemViewModel`: Manages item CRUD operations, filtering, sorting, and data persistence
+- `MainViewModel`: Manages item CRUD operations, filtering, sorting, local list cache, expired item state, and table update events
 - `TagViewModel`: Handles tag creation and filtering
-- `SortViewModel`: Manages sorting options (by date, quantity)
-- Search and segmentation control ViewModels
+- `EditViewModel`: Builds new or edited `Item` values and validates edit form state
+- `SortMethod`: Defines sorting options (by date, quantity, or no explicit sort)
 
 **Views/Controllers**:
 - `MainTableViewController`: Primary interface showing items in table format with filtering/search
@@ -38,9 +38,12 @@ FridgeHelper is an iOS app for managing food items in a refrigerator with expira
 - `TagTableViewController`: Tag management interface
 
 **Data Layer**:
-- `FileMgr` singleton: Handles JSON serialization/deserialization for items and tags to Documents directory
+- `SwiftDataItemRepository`: Handles local SwiftData persistence for items and UserDefaults-backed tags
+- `CompositeRepository`: Owner-device write-through repository. Reads from SwiftData and writes item changes to local SwiftData first, then CloudKit in the background
+- `CloudRepository`: Handles CloudKit item CRUD for private and shared zones
+- `SyncCoordinator`: Applies CloudKit changes to local SwiftData after app launch, remote notifications, or accepted shares
 - `DateController` singleton: Date formatting utilities
-- Uses iOS Documents directory for local storage (no CoreData/SQLite)
+- SwiftData is the local source of truth for persisted items
 
 ### Key Features
 - **Expiration Tracking**: Items within 3 days of expiry are flagged as "expired"
@@ -50,10 +53,32 @@ FridgeHelper is an iOS app for managing food items in a refrigerator with expira
 - **Sorting Options**: By date (near to far, far to near) and quantity (high to low, low to high)
 
 ### Data Flow
-1. `FileMgr` loads items from Documents directory JSON files
-2. `ItemViewModel` manages in-memory item arrays with Observable pattern
-3. ViewControllers bind to ViewModel observables for reactive UI updates
-4. Changes trigger automatic persistence via `FileMgr`
+1. `SwiftDataItemRepository.fetch()` loads items from SwiftData sorted by `timeStamp` descending, so newly created items remain at the top after reloads
+2. `MainViewModel` keeps an in-memory `savedItems` cache and derives `displayedItems`, `expiredItems`, and `expiredCount` from it
+3. ViewControllers subscribe to `MainViewModel` publishers and `tableUpdateEvent` for UI updates
+4. Item add/update/delete flows update `MainViewModel` cache first, persist through the repository, then emit table update events
+5. `MainTableViewController.viewWillAppear` refreshes view state such as tag menu, expired count, and selection only. It does not trigger CloudKit sync or refetch items
+6. CloudKit sync is triggered by app launch, remote notifications, accepted shares, or an explicit `MainViewModel.syncFromCloudIfNeeded()` call. After sync, `.cloudKitDataDidChange` causes `MainViewModel` to reload local SwiftData
+
+### Current Item Flow
+
+**Add / Edit / Delete**:
+1. `MainViewModel` updates the local `savedItems` cache first
+2. The repository writes the change to SwiftData
+3. `MainViewModel` emits a table update event
+4. `MainTableViewController` renders from `displayedItems`
+
+**MainTableViewController.viewWillAppear**:
+1. Refreshes tag menu, expired count, and selection state only
+2. Does not call `syncCloudToLocal()`
+3. Does not refetch items when returning from add/edit screens
+
+**CloudKit Changes**:
+1. `AppDelegate`, `SceneDelegate`, or remote notification handling triggers `syncCloudToLocal()`
+2. After sync finishes, `.cloudKitDataDidChange` is posted
+3. `MainViewModel` receives the notification and calls `loadItems()`
+4. `SwiftDataItemRepository.fetch()` returns items sorted by `timeStamp` descending
+5. `MainViewModel.updateDerivedState()` updates `displayedItems`
 
 ### Background Processing
 - Uses `BackgroundTasks` framework for checking expired items
