@@ -39,7 +39,14 @@ class MainTableViewController: UITableViewController {
                 let compositeRepo = CompositeRepository(local: localRepo, cloud: CloudRepository(zoneMgr: ZoneManager()))
                 let tempTag = TagViewModel(repository: localRepo)
                 tagViewModel = tempTag
-                viewModel = MainViewModel(tagViewModel: tempTag, local: compositeRepo)
+                viewModel = MainViewModel(
+                    tagViewModel: tempTag,
+                    local: compositeRepo,
+                    syncFromCloud: {
+                        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+                        try await appDelegate.syncCloudToLocal()
+                    }
+                )
             }
             if tagViewModel == nil {
                 tagViewModel = TagViewModel(repository: SwiftDataItemRepository(container: stack.container))
@@ -91,13 +98,6 @@ class MainTableViewController: UITableViewController {
         tagFilterBtn.menu = buildTagMenu()
         // Refresh expired items in case time has passed
         viewModel.refreshExpiredItems()
-        Task {
-            do {
-                try await (UIApplication.shared.delegate as? AppDelegate)?.syncCloudToLocal()
-            } catch {
-                printInfo("Sync Cloud To Local Fail: \(error)")
-            }
-        }
         isCellSelected = false
     }
 

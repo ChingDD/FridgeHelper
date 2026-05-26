@@ -20,7 +20,9 @@ class SwiftDataItemRepository: ItemRepositoryProtocol, TagRepositoryProtocol {
     }
 
     func fetch() async throws -> [Item] {
-        let descriptor = FetchDescriptor<Item>()
+        let descriptor = FetchDescriptor<Item>(
+            sortBy: [SortDescriptor(\Item.timeStamp, order: .reverse)]
+        )
         return try context.fetch(descriptor)
     }
 

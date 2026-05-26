@@ -32,7 +32,14 @@ class LunchingViewController: UIViewController {
         let cloudRepo = CloudRepository(zoneMgr: ZoneManager())
         let compositeRepo = CompositeRepository(local: localRepo, cloud: cloudRepo)
         sharedTagViewModel = TagViewModel(repository: localRepo)
-        sharedMainViewModel = MainViewModel(tagViewModel: sharedTagViewModel, local: compositeRepo)
+        sharedMainViewModel = MainViewModel(
+            tagViewModel: sharedTagViewModel,
+            local: compositeRepo,
+            syncFromCloud: {
+                guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+                try await appDelegate.syncCloudToLocal()
+            }
+        )
     }
 
     // MARK: - Launch Animation

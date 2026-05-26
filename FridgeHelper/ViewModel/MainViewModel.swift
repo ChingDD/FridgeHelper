@@ -57,6 +57,8 @@ class MainViewModel {
     private var savedItems: [Item] = []
     private var cancellables = Set<AnyCancellable>()
     private var initialNotificationsScheduled = false
+    private var isSyncingFromCloud = false                  // 避免同時間重複 sync
+    private let syncFromCloud: (() async throws -> Void)?   // 同步 Cloud 的入口由外部注入
 
     weak var notificationDelegate: NotificationManagerDelegate? {
         didSet {
@@ -70,9 +72,10 @@ class MainViewModel {
 
     private let tagViewModel: TagViewModel
 
-    init(tagViewModel: TagViewModel, local: ItemRepositoryProtocol) {
+    init(tagViewModel: TagViewModel, local: ItemRepositoryProtocol, syncFromCloud: (() async throws -> Void)? = nil) {
         self.tagViewModel = tagViewModel
         self.localRepository = local
+        self.syncFromCloud = syncFromCloud
         loadItems()
         setupPipeline()
     }
@@ -119,6 +122,21 @@ class MainViewModel {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.loadItems() }
             .store(in: &cancellables)
+    }
+
+    func syncFromCloudIfNeeded() {
+        guard let syncFromCloud else { return }
+        guard !isSyncingFromCloud else { return }
+
+        isSyncingFromCloud = true
+        Task { @MainActor [weak self] in
+            defer { self?.isSyncingFromCloud = false }
+            do {
+                try await syncFromCloud()
+            } catch {
+                printInfo("Sync Cloud To Local Fail: \(error)")
+            }
+        }
     }
 
     private func updateDerivedState() {
