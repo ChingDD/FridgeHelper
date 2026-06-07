@@ -196,11 +196,18 @@ class SyncCoordinator {
         let existingItems = try await localRepository.fetch()
 
         for record in changed {
-            let item = toItem(record)
-            if existingItems.contains(where: { $0.timeStamp == item.timeStamp }) {
-                try await localRepository.update(item: item)
+            let incoming = toItem(record)
+            if let existing = existingItems.first(where: { $0.timeStamp == incoming.timeStamp }) {
+                existing.name = incoming.name
+                existing.number = incoming.number
+                existing.expiryDate = incoming.expiryDate
+                existing.storeCondition = incoming.storeCondition
+                existing.memo = incoming.memo
+                existing.tag = incoming.tag
+                existing.image = incoming.image
+                try await localRepository.update(item: existing)
             } else {
-                try await localRepository.add(item: item)
+                try await localRepository.add(item: incoming)
             }
         }
 

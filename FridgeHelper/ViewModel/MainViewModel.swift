@@ -86,6 +86,7 @@ class MainViewModel {
             let items = (try? await self.localRepository.fetch()) ?? []
             self.savedItems = items
             self.updateDerivedState()
+            self.tableUpdateEvent.send(.reload)
 
             // Schedule initial notifications if delegate is already set
             if !self.initialNotificationsScheduled, self.notificationDelegate != nil {
