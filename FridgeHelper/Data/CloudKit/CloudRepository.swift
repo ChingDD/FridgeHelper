@@ -9,6 +9,7 @@ import Foundation
 import CloudKit
 import UIKit
 
+@MainActor
 class CloudRepository: ItemRepositoryProtocol {
 
     let zoneMgr: ZoneManaging

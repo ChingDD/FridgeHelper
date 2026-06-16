@@ -22,6 +22,7 @@ class CompositeRepository: ItemRepositoryProtocol {
 
     private let local: ItemRepositoryProtocol
     private let cloud: ItemRepositoryProtocol
+    private var cloudWriteTasks: [String: Task<Void, Never>] = [:]
 
     init(local: ItemRepositoryProtocol, cloud: ItemRepositoryProtocol) {
         self.local = local
@@ -36,22 +37,54 @@ class CompositeRepository: ItemRepositoryProtocol {
 
     func add(item: Item) async throws {
         try await local.add(item: item)
-        Task {
-            do {
-                try await cloud.add(item: item)
-            } catch {
-                printInfo("Save To Cloud Failed: \(error)")
-            }
+        enqueueCloudWrite(for: item) { [cloud] item in
+            try await cloud.add(item: item)
         }
     }
 
     func update(item: Item) async throws {
         try await local.update(item: item)
-        Task { try? await cloud.update(item: item) }
+        enqueueCloudWrite(for: item) { [cloud] item in
+            try await cloud.update(item: item)
+        }
     }
 
     func delete(item: Item) async throws {
         try await local.delete(item: item)
-        Task { try? await cloud.delete(item: item) }
+        enqueueCloudWrite(for: item) { [cloud] item in
+            try await cloud.delete(item: item)
+        }
+    }
+
+    private func enqueueCloudWrite(for item: Item, operation: @escaping (Item) async throws -> Void) {
+        let snapshot = item.cloudSnapshot()
+        let key = snapshot.timeStamp ?? UUID().uuidString
+        let previousTask = cloudWriteTasks[key]
+
+        cloudWriteTasks[key] = Task { @MainActor in
+            await previousTask?.value
+            do {
+                try await operation(snapshot)
+            } catch {
+                printInfo("Save To Cloud Failed: \(error)")
+            }
+        }
+    }
+}
+
+private extension Item {
+    func cloudSnapshot() -> Item {
+        Item(
+            name: name,
+            number: number,
+            expiryDate: expiryDate,
+            storeCondition: storeCondition,
+            memo: memo,
+            tag: tag,
+            image: image,
+            timeStamp: timeStamp,
+            zoneOwnerName: zoneOwnerName,
+            updatedByName: updatedByName
+        )
     }
 }
