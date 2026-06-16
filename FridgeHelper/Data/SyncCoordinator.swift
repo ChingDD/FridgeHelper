@@ -157,13 +157,13 @@ class SyncCoordinator {
 
             // 當有資料發生變更（新增或更新）時，雲端會透過此閉包回傳 Record 內容
             operation.recordWasChangedBlock = { _, result in
-                // 嘗試從 Result 中解出 CKRecord 並加入暫存陣列
-                if let record = try? result.get() { changedRecords.append(record) }
+                // 只處理 Item record，過濾 CKShare 等其他類型避免產生空白 Item
+                if let record = try? result.get(), record.recordType == "Item" { changedRecords.append(record) }
             }
 
             // 當有資料被刪除時，雲端會透過此閉包回傳該 Record 的 ID
-            operation.recordWithIDWasDeletedBlock = { recordID, _ in
-                // 將被刪除的 ID 加入暫存陣列
+            operation.recordWithIDWasDeletedBlock = { recordID, recordType in
+                guard recordType == "Item" else { return }
                 deletedRecordIDs.append(recordID)
             }
 
