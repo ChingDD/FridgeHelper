@@ -35,6 +35,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
 
 
+        // Set delegate before requesting authorization
+        /*
+         為了要觸發以下兩個 delegate
+         1. willPresent：若沒有設定 delegate，App 在前景時收到的通知會被系統靜默丟棄，不會顯示 banner。
+         2. didReceive：使用者點通知時的回調，沒有 delegate 就不會觸發。
+         */
+        UNUserNotificationCenter.current().delegate = self
+
+        // Request notification permission
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if let error { print("Notification authorization error: \(error)") }
+            print("Notification permission granted: \(granted)")
+        }
+
         // Registers to receive remote notifications
         application.registerForRemoteNotifications()
 
