@@ -31,17 +31,19 @@ class SubscriptionManager: Subscribable {
     }
 
     private func subscribeToPrivateZone() async throws {
-        let info = CKSubscription.NotificationInfo()
-        info.shouldSendContentAvailable = true
-        zoneSubscription.notificationInfo = info
+        zoneSubscription.notificationInfo = makeSilentNotificationInfo()
         try await privateDB.save(zoneSubscription)
     }
 
     private func subscribeToSharedDatabase() async throws {
+        dbSubscription.notificationInfo = makeSilentNotificationInfo()
+        try await sharedDB.save(dbSubscription)
+    }
+
+    private func makeSilentNotificationInfo() -> CKSubscription.NotificationInfo {
         let info = CKSubscription.NotificationInfo()
         info.shouldSendContentAvailable = true
-        dbSubscription.notificationInfo = info
-        try await sharedDB.save(dbSubscription)
+        return info
     }
 
     func subscribe() async throws {

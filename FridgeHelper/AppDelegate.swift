@@ -201,13 +201,38 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
     }
 
-    func syncCloudToLocal() async throws {
+    func syncCloudToLocal(shouldNotifyChanges: Bool = false) async throws {
         guard let stack = sharedStack else { return }
         let syncMgr = SyncCoordinator(localRepository: SwiftDataItemRepository(container: stack.container),
                                       zoneMgr: ZoneManager())
 
-        try await syncMgr.fetchChanges()
+        let changes = try await syncMgr.fetchChanges()
+        if shouldNotifyChanges {
+            notifyCloudChanges(changes)
+        }
         NotificationCenter.default.post(name: .cloudKitDataDidChange, object: nil)
+    }
+
+    private func notifyCloudChanges(_ changes: [CloudItemChange]) {
+        let groupedChanges = Dictionary(grouping: changes) { $0.updatedByName ?? "其他設備" }
+
+        for (updater, changes) in groupedChanges {
+            guard let firstItemName = changes.first?.itemName else { continue }
+
+            let content = UNMutableNotificationContent()
+            content.title = "冰箱資料已更新"
+            content.body = changes.count == 1
+                ? "\(updater) 更新了 \(firstItemName)"
+                : "\(updater) 更新了 \(firstItemName) 等 \(changes.count) 個物品"
+            content.sound = .default
+
+            let request = UNNotificationRequest(
+                identifier: "cloud-change-\(updater)-\(UUID().uuidString)",
+                content: content,
+                trigger: nil
+            )
+            UNUserNotificationCenter.current().add(request)
+        }
     }
 }
 
@@ -222,7 +247,7 @@ extension AppDelegate {
         guard userInfo["ck"] != nil else { return .noData }
         
         do {
-            try await syncCloudToLocal()
+            try await syncCloudToLocal(shouldNotifyChanges: true)
             return .newData
         } catch {
             printInfo("Sync Cloud To Local Fail: \(error)")

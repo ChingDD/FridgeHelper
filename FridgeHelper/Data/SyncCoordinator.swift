@@ -10,6 +10,11 @@
 import Foundation
 import CloudKit
 
+struct CloudItemChange {
+    let itemName: String
+    let updatedByName: String?
+}
+
 @MainActor
 class SyncCoordinator {
 
@@ -33,14 +38,15 @@ class SyncCoordinator {
     // MARK: - Public
 
     /// app 啟動 / 收到 silent push 時呼叫
-    func fetchChanges() async throws {
-        try await fetchPrivateChanges()
-        try await fetchSharedChanges()
+    func fetchChanges() async throws -> [CloudItemChange] {
+        let privateChanges = try await fetchPrivateChanges()
+        let sharedChanges = try await fetchSharedChanges()
+        return privateChanges + sharedChanges
     }
 
     // MARK: - Private DB（自己的 ShareZone）
 
-    private func fetchPrivateChanges() async throws {
+    private func fetchPrivateChanges() async throws -> [CloudItemChange] {
         let tokenKey = "syncToken_private_\(zoneMgr.zoneID.zoneName)"
         let savedToken = loadToken(forKey: tokenKey)
 
@@ -55,13 +61,16 @@ class SyncCoordinator {
         if let token = newToken {
             saveToken(token, forKey: tokenKey)
         }
+
+        return changed.map(toCloudItemChange)
     }
 
     // MARK: - Shared DB（被邀請進來的 zones）
 
-    private func fetchSharedChanges() async throws {
+    private func fetchSharedChanges() async throws -> [CloudItemChange] {
         let dbTokenKey = "syncToken_sharedDB"
         let savedDBToken = loadToken(forKey: dbTokenKey)
+        var itemChanges: [CloudItemChange] = []
 
         // Step 1：找出 sharedDB 中有哪些 zone 發生變動
         let (changedZoneIDs, deletedZoneIDs, newDBToken) = try await fetchDatabaseChanges(
@@ -81,6 +90,7 @@ class SyncCoordinator {
             )
 
             try await applyChanges(changed: changed, deleted: deleted)
+            itemChanges.append(contentsOf: changed.map(toCloudItemChange))
 
             if let token = newZoneToken {
                 saveToken(token, forKey: zoneTokenKey)
@@ -95,6 +105,8 @@ class SyncCoordinator {
         if let token = newDBToken {
             saveToken(token, forKey: dbTokenKey)
         }
+
+        return itemChanges
     }
 
     // MARK: - CloudKit Operations
@@ -205,6 +217,7 @@ class SyncCoordinator {
                 existing.memo = incoming.memo
                 existing.tag = incoming.tag
                 existing.image = incoming.image
+                existing.updatedByName = incoming.updatedByName
                 try await localRepository.update(item: existing)
             } else {
                 try await localRepository.add(item: incoming)
@@ -241,6 +254,7 @@ class SyncCoordinator {
         let tag = record["tag"] as? String
         let timeStamp = record["timestamp"] as? String
         let zoneOwnerName = record.recordID.zoneID.ownerName
+        let updatedByName = record["updatedByName"] as? String
 
         var imageData: Data? = nil
         if let asset = record["image"] as? CKAsset, let url = asset.fileURL {
@@ -256,7 +270,15 @@ class SyncCoordinator {
             tag: tag,
             image: imageData,
             timeStamp: timeStamp,
-            zoneOwnerName: zoneOwnerName
+            zoneOwnerName: zoneOwnerName,
+            updatedByName: updatedByName
+        )
+    }
+
+    private func toCloudItemChange(_ record: CKRecord) -> CloudItemChange {
+        CloudItemChange(
+            itemName: record["name"] as? String ?? "物品",
+            updatedByName: record["updatedByName"] as? String
         )
     }
 }

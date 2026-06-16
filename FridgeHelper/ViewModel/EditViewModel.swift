@@ -28,11 +28,15 @@ class EditViewModel {
 
     // Preserved timestamp for existing items (fixes notification re-scheduling bug)
     private let existingTimestamp: String?
+    private let existingZoneOwnerName: String?
+    private let existingUpdatedByName: String?
     private var cancellables = Set<AnyCancellable>()
 
     init(existingItem: Item? = nil, availableTags: [String]) {
         self.availableTags = ["未選擇"] + availableTags
         self.existingTimestamp = existingItem?.timeStamp
+        self.existingZoneOwnerName = existingItem?.zoneOwnerName
+        self.existingUpdatedByName = existingItem?.updatedByName
 
         if let item = existingItem {
             self.name = item.name
@@ -74,7 +78,9 @@ class EditViewModel {
             memo: memo.isEmpty ? nil : memo,
             tag: selectedTag,
             image: selectedImage?.jpegData(compressionQuality: 0.5),
-            timeStamp: timestamp
+            timeStamp: timestamp,
+            zoneOwnerName: existingZoneOwnerName,
+            updatedByName: existingUpdatedByName
         )
     }
 }

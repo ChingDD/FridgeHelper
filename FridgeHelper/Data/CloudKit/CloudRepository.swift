@@ -7,6 +7,7 @@
 
 import Foundation
 import CloudKit
+import UIKit
 
 class CloudRepository: ItemRepositoryProtocol {
 
@@ -87,6 +88,7 @@ class CloudRepository: ItemRepositoryProtocol {
         record["memo"] = item.memo as CKRecordValue?
         record["tag"] = item.tag as CKRecordValue?
         record["timestamp"] = item.timeStamp as CKRecordValue?
+        record["updatedByName"] = UIDevice.current.name as CKRecordValue
 
         var tempURL: URL? = nil
         if let imageData = item.image {
@@ -108,6 +110,7 @@ class CloudRepository: ItemRepositoryProtocol {
         let tag = record["tag"] as? String
         let timeStamp = record["timestamp"] as? String
         let zoneOwnerName = record.recordID.zoneID.ownerName
+        let updatedByName = record["updatedByName"] as? String
 
         var imageData: Data? = nil
         if let asset = record["image"] as? CKAsset, let url = asset.fileURL {
@@ -123,7 +126,8 @@ class CloudRepository: ItemRepositoryProtocol {
             tag: tag,
             image: imageData,
             timeStamp: timeStamp,
-            zoneOwnerName: zoneOwnerName
+            zoneOwnerName: zoneOwnerName,
+            updatedByName: updatedByName
         )
     }
 }
