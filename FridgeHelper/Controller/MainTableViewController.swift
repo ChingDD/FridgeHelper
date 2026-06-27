@@ -33,6 +33,9 @@ class MainTableViewController: UITableViewController {
         super.viewDidLoad()
 
         // Temporary guard: allow standalone launch without injection
+        /*
+         若要跳過 lunchScreen ，直接進到這裡，以下註解的程式碼可以快速測試
+         但會有非同步問題：跑 viewModel.notificationDelegate = self 時 loadData 還沒跑完（因為非同步 loadData 關係）
         if let stack = (UIApplication.shared.delegate as? AppDelegate)?.sharedStack {
             if viewModel == nil {
                 let localRepo = SwiftDataItemRepository(container: stack.container)
@@ -52,6 +55,7 @@ class MainTableViewController: UITableViewController {
                 tagViewModel = TagViewModel(repository: SwiftDataItemRepository(container: stack.container))
             }
         }
+        */
 
         viewModel.notificationDelegate = self
 
