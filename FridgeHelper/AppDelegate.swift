@@ -201,7 +201,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
     }
 
+    private var syncTask: Task<Void, Error>?
+
+    /// 序列化雲端同步：同一時間只有一條 sync 在跑，後到的排在前一條之後，
+    /// 避免兩條 sync 交錯時，較舊的雲端快照晚套用、蓋掉較新的資料
     func syncCloudToLocal(shouldNotifyChanges: Bool = false) async throws {
+        let previous = syncTask
+        let task = Task {
+            _ = try? await previous?.value
+            try await self.performSync(shouldNotifyChanges: shouldNotifyChanges)
+        }
+        syncTask = task
+        try await task.value
+    }
+
+    private func performSync(shouldNotifyChanges: Bool) async throws {
         guard let stack = sharedStack else { return }
         let syncMgr = SyncCoordinator(localRepository: SwiftDataItemRepository(container: stack.container),
                                       zoneMgr: ZoneManager())

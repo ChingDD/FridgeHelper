@@ -54,13 +54,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             do {
                 try await container.accept(cloudKitShareMetadata)
                 print("container accept")
-                guard let stack = (UIApplication.shared.delegate as? AppDelegate)?.sharedStack else { return }
-                let syncMgr = SyncCoordinator(
-                    localRepository: SwiftDataItemRepository(container: stack.container),
-                    zoneMgr: ZoneManager()
-                )
-                try await syncMgr.fetchChanges()
-                NotificationCenter.default.post(name: .cloudKitDataDidChange, object: nil)
+                guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+                // 走統一入口，讓同步被序列化，不與其他 sync 交錯
+                try await appDelegate.syncCloudToLocal()
             } catch {
                 print("container accept fail: \(error)")
             }

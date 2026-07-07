@@ -205,10 +205,11 @@ class SyncCoordinator {
     // MARK: - Apply to Local（SwiftData）
 
     private func applyChanges(changed: [CKRecord], deleted: [CKRecord.ID]) async throws {
-        let existingItems = try await localRepository.fetch()
-
+        // 每筆寫入前重新查詢本地，不跨 await 沿用同一份清單快照，
+        // 避免套用期間本地已增刪時操作到過時的物件參考
         for record in changed {
             let incoming = toItem(record)
+            let existingItems = try await localRepository.fetch()
             if let existing = existingItems.first(where: { $0.timeStamp == incoming.timeStamp }) {
                 existing.name = incoming.name
                 existing.number = incoming.number
@@ -225,6 +226,7 @@ class SyncCoordinator {
         }
 
         for recordID in deleted {
+            let existingItems = try await localRepository.fetch()
             if let item = existingItems.first(where: { $0.timeStamp == recordID.recordName }) {
                 try await localRepository.delete(item: item)
             }
