@@ -32,18 +32,25 @@ FridgeHelper is an iOS app for managing food items in a refrigerator with expira
 - `SortMethod`: Defines sorting options (by date, quantity, or no explicit sort)
 
 **Views/Controllers**:
-- `MainTableViewController`: Primary interface showing items in table format with filtering/search
+- `LunchingViewController`: Launch screen and **composition root**. Builds the shared `SwiftDataItemRepository` → `CloudRepository` → `CompositeRepository` chain, creates the single `TagViewModel` / `MainViewModel` instances, and injects them (plus a `ShareManager` on the owner device) into `MainTableViewController` before presenting it
+- `MainTableViewController`: Primary interface showing items in table format with filtering/search. Receives `viewModel` / `tagViewModel` / optional `shareManager` via injection; shows a share button only when `shareManager != nil` (owner device)
 - `EditViewController`: Item creation/editing interface  
 - `ExpiredTableViewController`: Shows items nearing expiration
 - `TagTableViewController`: Tag management interface
 
 **Data Layer**:
+- `SwiftDataStack`: Owns the SwiftData `ModelContainer`. Created once in `AppDelegate` (`sharedStack`) and used as the container source for every repository
 - `SwiftDataItemRepository`: Handles local SwiftData persistence for items and UserDefaults-backed tags
 - `CompositeRepository`: Owner-device write-through repository. Reads from SwiftData and writes item changes to local SwiftData first, then CloudKit in the background
-- `CloudRepository`: Handles CloudKit item CRUD for private and shared zones
-- `SyncCoordinator`: Applies CloudKit changes to local SwiftData after app launch, remote notifications, or accepted shares
+- `CloudRepository`: Handles CloudKit item CRUD for private and shared zones (routes to `privateDB` / `sharedDB` by `Item.zoneOwnerName`)
+- `SyncCoordinator`: Cloud → local one-way sync using change tokens. Applies CloudKit changes to local SwiftData after app launch, remote notifications, or accepted shares. Does not handle user CRUD
 - `DateController` singleton: Date formatting utilities
 - SwiftData is the local source of truth for persisted items
+
+**CloudKit Sharing Layer**:
+- `ZoneManager` (`ZoneManaging`): Owns the shared `CKRecordZone.ID` ("ShareZone" in the private DB) and ensures the zone exists before sharing/sync
+- `ShareManager` (`SharingRepositoryProtocol`): Fetches or creates the zone-wide `CKShare` for `UICloudSharingController`, and stops sharing. Injected only into the owner device's `MainTableViewController`
+- `SubscriptionManager` (`Subscribable`): Registers CloudKit silent-push subscriptions — a `CKRecordZoneSubscription` on the private zone (owner cross-device sync) and a `CKDatabaseSubscription` on the shared DB (participant receives owner updates). Registered from `AppDelegate` on launch
 
 ### Key Features
 - **Expiration Tracking**: Items within 3 days of expiry are flagged as "expired"
@@ -51,6 +58,9 @@ FridgeHelper is an iOS app for managing food items in a refrigerator with expira
 - **Filtering System**: By storage condition, tags, search keywords
 - **Image Support**: Items can have associated photos stored as JPEG data
 - **Sorting Options**: By date (near to far, far to near) and quantity (high to low, low to high)
+- **iCloud Sync**: Automatically syncs items across devices signed into the same Apple ID via CloudKit private database
+- **Shared Fridge**: Invite others to co-manage the same fridge through a zone-wide `CKShare` (owner invites via `UICloudSharingController`, participant accepts and reads from the shared database)
+- **Real-time Updates**: Silent-push CloudKit subscriptions trigger cloud → local sync and surface which item was changed and by whom
 
 ### Data Flow
 1. `SwiftDataItemRepository.fetch()` loads items from SwiftData sorted by `timeStamp` descending, so newly created items remain at the top after reloads
@@ -79,6 +89,22 @@ FridgeHelper is an iOS app for managing food items in a refrigerator with expira
 3. `MainViewModel` receives the notification and calls `loadItems()`
 4. `SwiftDataItemRepository.fetch()` returns items sorted by `timeStamp` descending
 5. `MainViewModel.updateDerivedState()` updates `displayedItems`
+
+**Silent Push → Sync**:
+1. On launch, `AppDelegate` registers `SubscriptionManager` subscriptions (private zone + shared DB)
+2. A change on any device delivers a silent push; `AppDelegate.didReceiveRemoteNotification` calls `syncCloudToLocal(shouldNotifyChanges: true)`
+3. `syncCloudToLocal()` builds a `SyncCoordinator` and applies cloud changes to SwiftData, then posts `.cloudKitDataDidChange`
+
+**Composition Root (`LunchingViewController`)**:
+1. Reads `AppDelegate.sharedStack` for the SwiftData container
+2. Builds `SwiftDataItemRepository` → `CloudRepository(zoneMgr:)` → `CompositeRepository`
+3. Creates the shared `TagViewModel` and `MainViewModel` (injecting the `syncFromCloud` closure that calls `appDelegate.syncCloudToLocal()`)
+4. Injects `viewModel` / `tagViewModel` / `shareManager` into `MainTableViewController` during the launch transition
+
+**Sharing Flow (owner device only)**:
+1. Tapping the share button calls `ShareManager.fetchOrCreateShare()`, which ensures the zone exists and returns a `CKShare` + `CKContainer`
+2. A `UICloudSharingController` presents the invite UI
+3. On the participant device, `SceneDelegate.windowScene(_:userDidAcceptCloudKitShareWith:)` accepts the share via `container.accept(_:)` then calls `syncCloudToLocal()`
 
 ### Background Processing
 - Uses `BackgroundTasks` framework for checking expired items
