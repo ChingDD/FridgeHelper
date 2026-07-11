@@ -5,7 +5,12 @@
       "mcp__plugin_Notion_notion__notion-create-pages",
       "mcp__plugin_Notion_notion__notion-fetch",
       "mcp__plugin_Notion_notion__notion-update-page",
-      "mcp__notion__notion-search"
+      "mcp__notion__notion-search",
+      "Bash(xcodebuild -project /Users/jefflin/Developer/FridgeHelper/FridgeHelper/FridgeHelper.xcodeproj -list)",
+      "Bash(xcrun simctl *)",
+      "Bash(sed -i '' '/INFOPLIST_KEY_UIMainStoryboardFile = Main;/d' FridgeHelper.xcodeproj/project.pbxproj)",
+      "Bash(rm FridgeHelper/Base.lproj/Main.storyboard)",
+      "Bash(rm -rf FridgeHelper/Assets.xcassets/Color1.colorset FridgeHelper/Assets.xcassets/Color2.colorset FridgeHelper/Assets.xcassets/Color3.colorset FridgeHelper/Assets.xcassets/Color4.colorset FridgeHelper/Assets.xcassets/Color7.colorset FridgeHelper/Assets.xcassets/Color8.colorset FridgeHelper/Assets.xcassets/Color9.colorset FridgeHelper/Assets.xcassets/Color10.colorset \"FridgeHelper/Assets.xcassets/Color8 icon.colorset\")"
     ]
   }
 }

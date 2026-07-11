@@ -43,15 +43,27 @@ class ShareManager: SharingRepositoryProtocol {
         try await database.deleteRecord(withID: share.recordID)
     }
 
-    // MARK: - Private
-
-    private func fetchExistingShare() async throws -> CKShare? {
+    func fetchExistingShare() async throws -> CKShare? {
         let shareRecordID = CKRecord.ID(
             recordName: CKRecordNameZoneWideShare,
             zoneID: zoneMgr.zoneID
         )
         do {
             let record = try await database.record(for: shareRecordID)
+            return record as? CKShare
+        } catch let error as CKError where error.code == .unknownItem {
+            return nil
+        } catch let error as CKError where error.code == .zoneNotFound {
+            return nil
+        }
+    }
+
+    func fetchParticipatingShare() async throws -> CKShare? {
+        let zones = try await ckContainer.sharedCloudDatabase.allRecordZones()
+        guard let zone = zones.first else { return nil }
+        let shareRecordID = CKRecord.ID(recordName: CKRecordNameZoneWideShare, zoneID: zone.zoneID)
+        do {
+            let record = try await ckContainer.sharedCloudDatabase.record(for: shareRecordID)
             return record as? CKShare
         } catch let error as CKError where error.code == .unknownItem {
             return nil

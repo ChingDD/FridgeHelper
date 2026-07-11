@@ -31,24 +31,19 @@ enum SortMethod: String, CaseIterable {
     }
 }
 
-enum TableUpdateEvent {
-    case reload
-    case deleteSection(Int)
-    case reloadSection(Int)
-}
-
 class MainViewModel {
     // Inputs (ViewController writes)
     @Published var sortOption: SortMethod = .取消
     @Published var searchKeyword: String = ""
-    @Published var segmentIndex: Int = 0
 
     // Outputs (ViewController subscribes)
     @Published private(set) var displayedItems: [Item] = []
     @Published private(set) var expiredItems: [Item] = []
     @Published private(set) var expiredCount: Int = 0
 
-    let tableUpdateEvent = PassthroughSubject<TableUpdateEvent, Never>()
+    // User-defined lists（篩選選取狀態也在這兩個 VM 上）
+    let tags: StringListViewModel
+    let locations: StringListViewModel
 
     // Repository
     let localRepository: ItemRepositoryProtocol
@@ -70,10 +65,9 @@ class MainViewModel {
         }
     }
 
-    private let tagViewModel: TagViewModel
-
-    init(tagViewModel: TagViewModel, local: ItemRepositoryProtocol, syncFromCloud: (() async throws -> Void)? = nil) {
-        self.tagViewModel = tagViewModel
+    init(tags: StringListViewModel, locations: StringListViewModel, local: ItemRepositoryProtocol, syncFromCloud: (() async throws -> Void)? = nil) {
+        self.tags = tags
+        self.locations = locations
         self.localRepository = local
         self.syncFromCloud = syncFromCloud
         loadItems()
@@ -86,7 +80,6 @@ class MainViewModel {
             let items = (try? await self.localRepository.fetch()) ?? []
             self.savedItems = items
             self.updateDerivedState()
-            self.tableUpdateEvent.send(.reload)
 
             // Schedule initial notifications if delegate is already set
             if !self.initialNotificationsScheduled, self.notificationDelegate != nil {
@@ -103,19 +96,18 @@ class MainViewModel {
             .debounce(for: .milliseconds(200), scheduler: RunLoop.main)
 
         // React to filter/sort/search changes (skip initial emission to avoid double-reload on setup)
-        Publishers.CombineLatest4($sortOption, debouncedKeyword, $segmentIndex, tagViewModel.$selectedTag)
+        Publishers.CombineLatest4($sortOption, debouncedKeyword, locations.$selected, tags.$selected)
             .dropFirst()
             .receive(on: RunLoop.main)
-            .sink { [weak self] sort, keyword, segment, tag in
+            .sink { [weak self] sort, keyword, location, tag in
                 guard let self else { return }
                 self.displayedItems = self.applyFilters(
                     items: self.savedItems,
                     sort: sort,
                     keyword: keyword,
-                    segment: segment,
+                    location: location,
                     tag: tag
                 )
-                self.tableUpdateEvent.send(.reload)
             }
             .store(in: &cancellables)
 
@@ -145,15 +137,15 @@ class MainViewModel {
             items: savedItems,
             sort: sortOption,
             keyword: searchKeyword,
-            segment: segmentIndex,
-            tag: tagViewModel.selectedTag
+            location: locations.selected,
+            tag: tags.selected
         )
         let expired = savedItems.filter { $0.expiryDate.timeIntervalSinceNow <= 259200 }
         expiredItems = expired
         expiredCount = expired.count
     }
 
-    private func applyFilters(items: [Item], sort: SortMethod, keyword: String, segment: Int, tag: String?) -> [Item] {
+    private func applyFilters(items: [Item], sort: SortMethod, keyword: String, location: String?, tag: String?) -> [Item] {
         var result = sort.sortItems(items)
         if !keyword.isEmpty {
             result = result.filter { $0.name.contains(keyword) }
@@ -161,11 +153,8 @@ class MainViewModel {
         if let tag {
             result = result.filter { $0.tag == tag }
         }
-        switch segment {
-        case 1: result = result.filter { $0.storeCondition == 0 }
-        case 2: result = result.filter { $0.storeCondition == 1 }
-        case 3: result = result.filter { $0.storeCondition == 2 }
-        default: break
+        if let location {
+            result = result.filter { $0.storeLocation == location }
         }
         return result
     }
@@ -180,16 +169,13 @@ class MainViewModel {
                 try await self.localRepository.add(item: item)
                 self.notificationDelegate?.rescheduleNotification(for: item)
                 self.updateDerivedState()
-                self.tableUpdateEvent.send(.reload)
             } catch {
                 printInfo("Add Item Error: \(error)")
             }
         }
     }
 
-    func removeItem(at displayedIndex: Int) {
-        guard displayedIndex < displayedItems.count else { return }
-        let item = displayedItems[displayedIndex]
+    func removeItem(_ item: Item) {
         savedItems.removeAll { $0.timeStamp == item.timeStamp }
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -197,42 +183,49 @@ class MainViewModel {
                 try await self.localRepository.delete(item: item)
                 self.notificationDelegate?.removeNotifications(for: item)
                 self.updateDerivedState()
-                self.tableUpdateEvent.send(.deleteSection(displayedIndex))
             } catch {
                 printInfo("Remove Item Error: \(error)")
             }
         }
     }
 
-    func updateItem(at displayedIndex: Int, with newItem: Item) {
-        guard displayedIndex < displayedItems.count else { return }
-        let oldItem = displayedItems[displayedIndex]
-        guard savedItems.contains(where: { $0.timeStamp == oldItem.timeStamp }) else { return }
+    func updateItem(_ item: Item, with newItem: Item) {
+        guard savedItems.contains(where: { $0.timeStamp == item.timeStamp }) else { return }
 
         // Update managed object properties in-place (SwiftData tracks changes via @Model)
-        oldItem.name = newItem.name
-        oldItem.number = newItem.number
-        oldItem.expiryDate = newItem.expiryDate
-        oldItem.storeCondition = newItem.storeCondition
-        oldItem.memo = newItem.memo
-        oldItem.tag = newItem.tag
-        oldItem.image = newItem.image
+        item.name = newItem.name
+        item.number = newItem.number
+        item.unit = newItem.unit
+        item.expiryDate = newItem.expiryDate
+        item.storeCondition = newItem.storeCondition
+        item.storeLocation = newItem.storeLocation
+        item.memo = newItem.memo
+        item.tag = newItem.tag
+        item.image = newItem.image
 
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                try await self.localRepository.update(item: oldItem)
-                self.notificationDelegate?.removeNotifications(for: oldItem)
-                self.notificationDelegate?.rescheduleNotification(for: oldItem)
+                try await self.localRepository.update(item: item)
+                self.notificationDelegate?.removeNotifications(for: item)
+                self.notificationDelegate?.rescheduleNotification(for: item)
                 self.updateDerivedState()
-                if displayedIndex < self.displayedItems.count,
-                   self.displayedItems[displayedIndex].timeStamp == oldItem.timeStamp {
-                    self.tableUpdateEvent.send(.reloadSection(displayedIndex))
-                } else {
-                    self.tableUpdateEvent.send(.reload)
-                }
             } catch {
                 printInfo("Update Item Error: \(error)")
+            }
+        }
+    }
+
+    /// 卡片上 stepper 直接調整數量（CompositeRepository 的 single-flight 會合併頻繁上傳）
+    func updateQuantity(of item: Item, to value: Int) {
+        item.number = value
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await self.localRepository.update(item: item)
+                self.updateDerivedState()
+            } catch {
+                printInfo("Update Quantity Error: \(error)")
             }
         }
     }

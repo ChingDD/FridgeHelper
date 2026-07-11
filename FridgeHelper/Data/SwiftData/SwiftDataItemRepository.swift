@@ -9,11 +9,10 @@ import Foundation
 import SwiftData
 
 @MainActor
-class SwiftDataItemRepository: ItemRepositoryProtocol, TagRepositoryProtocol {
+class SwiftDataItemRepository: ItemRepositoryProtocol {
 
     private let container: ModelContainer
     private var context: ModelContext { container.mainContext }
-    private let tagsKey = "app.swiftdata.tags"
 
     init(container: ModelContainer) {
         self.container = container
@@ -38,15 +37,5 @@ class SwiftDataItemRepository: ItemRepositoryProtocol, TagRepositoryProtocol {
     func delete(item: Item) async throws {
         context.delete(item)
         try context.save()
-    }
-
-    // MARK: - Tags (UserDefaults)
-
-    func fetchTags() -> [String] {
-        return UserDefaults.standard.stringArray(forKey: tagsKey) ?? []
-    }
-
-    func saveTags(_ tags: [String]) {
-        UserDefaults.standard.set(tags, forKey: tagsKey)
     }
 }

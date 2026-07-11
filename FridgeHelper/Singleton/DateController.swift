@@ -19,7 +19,7 @@ class dateController {
         //過去的時間可選30天前
         datePicker.minimumDate = Date(timeIntervalSinceNow: -2592000)
         //背景
-        datePicker.backgroundColor = UIColor(named: "Color7")
+        datePicker.backgroundColor = Theme.surface
         datePicker.date = Date()
         //這時print出來的是倫敦的時區，因為這個func沒有用dateFormatter改時區
         datePicker.addTarget(self, action: #selector(printDate), for: .valueChanged)

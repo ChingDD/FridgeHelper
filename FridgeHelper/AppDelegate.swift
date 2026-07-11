@@ -27,6 +27,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Plan Notification
         Task {
             do {
+                await migrateStoreLocationIfNeeded()
                 try await syncCloudToLocal()
                 planAllItemsExpirationNotification()
             } catch {
@@ -73,10 +74,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         let navigationBarAppearance = UINavigationBarAppearance()
         navigationBarAppearance.configureWithDefaultBackground()
         navigationBarAppearance.shadowColor = .clear
-        let font = UIFont.systemFont(ofSize: 20, weight: .semibold)
         navigationBarAppearance.titleTextAttributes = [
-            .font : font,
-            .foregroundColor : UIColor(named: "Color6")!
+            .font: Theme.font(18, .bold),
+            .foregroundColor: Theme.textPrimary
+        ]
+        navigationBarAppearance.largeTitleTextAttributes = [
+            .font: Theme.font(30, .bold),
+            .foregroundColor: Theme.textPrimary
         ]
         UINavigationBar.appearance().standardAppearance = navigationBarAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navigationBarAppearance
@@ -198,6 +202,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             for snapshot in snapshots {
                 self.scheduleNotification(name: snapshot.name, timeStamp: snapshot.timeStamp, expiryDate: snapshot.expiryDate)
             }
+        }
+    }
+
+    /// 一次性本地遷移：舊資料的 storeCondition Int → storeLocation 字串（storeLocation 為空即未遷移，天然冪等）
+    @MainActor
+    private func migrateStoreLocationIfNeeded() async {
+        guard let stack = sharedStack else { return }
+        let repository = SwiftDataItemRepository(container: stack.container)
+        guard let items = try? await repository.fetch() else { return }
+        for item in items where item.storeLocation.isEmpty {
+            item.storeLocation = Item.location(fromLegacy: item.storeCondition)
+            try? await repository.update(item: item)
         }
     }
 

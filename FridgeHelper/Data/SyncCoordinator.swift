@@ -208,13 +208,15 @@ class SyncCoordinator {
         // 每筆寫入前重新查詢本地，不跨 await 沿用同一份清單快照，
         // 避免套用期間本地已增刪時操作到過時的物件參考
         for record in changed {
-            let incoming = toItem(record)
+            let incoming = ItemRecordMapper.item(from: record)
             let existingItems = try await localRepository.fetch()
             if let existing = existingItems.first(where: { $0.timeStamp == incoming.timeStamp }) {
                 existing.name = incoming.name
                 existing.number = incoming.number
+                existing.unit = incoming.unit
                 existing.expiryDate = incoming.expiryDate
                 existing.storeCondition = incoming.storeCondition
+                existing.storeLocation = incoming.storeLocation
                 existing.memo = incoming.memo
                 existing.tag = incoming.tag
                 existing.image = incoming.image
@@ -243,38 +245,6 @@ class SyncCoordinator {
     private func saveToken(_ token: CKServerChangeToken, forKey key: String) {
         let data = try? NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true)
         UserDefaults.standard.set(data, forKey: key)
-    }
-
-    // MARK: - Mapping（CKRecord → Item）
-
-    private func toItem(_ record: CKRecord) -> Item {
-        let name = record["name"] as? String ?? ""
-        let number = (record["quantity"] as? Int64).map { Int($0) } ?? 0
-        let expiryDate = record["expiry"] as? Date ?? Date()
-        let storeCondition = (record["store"] as? Int64).map { Int($0) } ?? 0
-        let memo = record["memo"] as? String
-        let tag = record["tag"] as? String
-        let timeStamp = record["timestamp"] as? String
-        let zoneOwnerName = record.recordID.zoneID.ownerName
-        let updatedByName = record["updatedByName"] as? String
-
-        var imageData: Data? = nil
-        if let asset = record["image"] as? CKAsset, let url = asset.fileURL {
-            imageData = try? Data(contentsOf: url)
-        }
-
-        return Item(
-            name: name,
-            number: number,
-            expiryDate: expiryDate,
-            storeCondition: storeCondition,
-            memo: memo,
-            tag: tag,
-            image: imageData,
-            timeStamp: timeStamp,
-            zoneOwnerName: zoneOwnerName,
-            updatedByName: updatedByName
-        )
     }
 
     private func toCloudItemChange(_ record: CKRecord) -> CloudItemChange {

@@ -48,7 +48,7 @@ class CloudRepository: ItemRepositoryProtocol {
 
         return matchResults.compactMap { _, result in
             guard let record = try? result.get() else { return nil }
-            return toItem(record)
+            return ItemRecordMapper.item(from: record)
         }
     }
 
@@ -81,53 +81,7 @@ class CloudRepository: ItemRepositoryProtocol {
 
     private func toRecord(_ item: Item) -> (CKRecord, URL?) {
         let record = CKRecord(recordType: "Item", recordID: recordID(for: item))
-        record["name"] = item.name
-        record["quantity"] = item.number as CKRecordValue
-        record["expiry"] = item.expiryDate as CKRecordValue
-        record["store"] = item.storeCondition as CKRecordValue
-        record["memo"] = item.memo as CKRecordValue?
-        record["tag"] = item.tag as CKRecordValue?
-        record["timestamp"] = item.timeStamp as CKRecordValue?
-        record["updatedByName"] = UIDevice.current.name as CKRecordValue
-
-        var tempURL: URL? = nil
-        if let imageData = item.image {
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-            try? imageData.write(to: url)
-            record["image"] = CKAsset(fileURL: url)
-            tempURL = url
-        }
-
+        let tempURL = ItemRecordMapper.populate(record, from: item)
         return (record, tempURL)
-    }
-
-    private func toItem(_ record: CKRecord) -> Item {
-        let name = record["name"] as? String ?? ""
-        let number = (record["quantity"] as? Int64).map { Int($0) } ?? 0
-        let expiryDate = record["expiry"] as? Date ?? Date()
-        let storeCondition = (record["store"] as? Int64).map { Int($0) } ?? 0
-        let memo = record["memo"] as? String
-        let tag = record["tag"] as? String
-        let timeStamp = record["timestamp"] as? String
-        let zoneOwnerName = record.recordID.zoneID.ownerName
-        let updatedByName = record["updatedByName"] as? String
-
-        var imageData: Data? = nil
-        if let asset = record["image"] as? CKAsset, let url = asset.fileURL {
-            imageData = try? Data(contentsOf: url)
-        }
-
-        return Item(
-            name: name,
-            number: number,
-            expiryDate: expiryDate,
-            storeCondition: storeCondition,
-            memo: memo,
-            tag: tag,
-            image: imageData,
-            timeStamp: timeStamp,
-            zoneOwnerName: zoneOwnerName,
-            updatedByName: updatedByName
-        )
     }
 }
