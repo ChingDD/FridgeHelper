@@ -65,7 +65,7 @@ final class FridgeItemCell: UICollectionViewCell {
 
         let content = UIStackView(arrangedSubviews: [thumbnail, rightColumn])
         content.spacing = 12
-        content.alignment = .top
+        content.alignment = .center
         content.translatesAutoresizingMaskIntoConstraints = false
 
         card.translatesAutoresizingMaskIntoConstraints = false

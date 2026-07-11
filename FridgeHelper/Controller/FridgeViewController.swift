@@ -21,8 +21,18 @@ final class FridgeViewController: UIViewController {
     private let bannerLabel = UILabel()
     private let locationField = MenuFieldControl(value: "全部位置")
     private let tagField = MenuFieldControl(value: "全部標籤")
+    private let sortButton = UIButton()
     private let fab = FloatingActionButton()
     private let emptyLabel = UILabel()
+
+    private lazy var searchController: UISearchController = {
+        let searchController = UISearchController(searchResultsController: nil)
+        searchController.searchResultsUpdater = self
+        searchController.delegate = self
+        searchController.obscuresBackgroundDuringPresentation = false
+        searchController.searchBar.placeholder = "搜尋食材"
+        return searchController
+    }()
 
     private lazy var collectionView: UICollectionView = {
         var config = UICollectionLayoutListConfiguration(appearance: .plain)
@@ -48,10 +58,7 @@ final class FridgeViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = Theme.background
-        title = "我的冰箱"
-        navigationController?.navigationBar.prefersLargeTitles = true
 
-        setupNavigationBar()
         setupLayout()
         setupDataSource()
         setupBindings()
@@ -61,20 +68,51 @@ final class FridgeViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(true, animated: animated)
         viewModel.refreshExpiredItems()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: animated)
     }
 
     // MARK: - Setup
 
-    private func setupNavigationBar() {
-        let searchController = UISearchController(searchResultsController: nil)
-        searchController.searchResultsUpdater = self
-        searchController.obscuresBackgroundDuringPresentation = false
-        searchController.searchBar.placeholder = "搜尋食材"
-        navigationItem.searchController = searchController
+    /// 品牌列：冰箱 icon（淺 teal 底）＋ teal 標題＋放大鏡，取代 navigation bar
+    private func makeBrandRow() -> UIView {
+        let iconContainer = UIView()
+        iconContainer.backgroundColor = Theme.primary.withAlphaComponent(0.12)
+        iconContainer.layer.cornerRadius = 10
 
-        let sortButton = UIBarButtonItem(image: UIImage(systemName: "arrow.up.arrow.down"), menu: buildSortMenu())
-        navigationItem.rightBarButtonItem = sortButton
+        let icon = UIImageView(image: UIImage(systemName: "refrigerator", withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold)))
+        icon.tintColor = Theme.primaryDeep
+        icon.translatesAutoresizingMaskIntoConstraints = false
+        iconContainer.addSubview(icon)
+
+        let titleLabel = UILabel()
+        titleLabel.text = "FridgeHelper"
+        titleLabel.font = Theme.font(21, .bold)
+        titleLabel.textColor = Theme.primaryDeep
+
+        let searchButton = UIButton(type: .system)
+        searchButton.setImage(UIImage(systemName: "magnifyingglass", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)), for: .normal)
+        searchButton.tintColor = Theme.textPrimary
+        searchButton.addTarget(self, action: #selector(searchTapped), for: .touchUpInside)
+
+        let row = UIStackView(arrangedSubviews: [iconContainer, titleLabel, UIView(), searchButton])
+        row.spacing = 10
+        row.alignment = .center
+
+        NSLayoutConstraint.activate([
+            iconContainer.widthAnchor.constraint(equalToConstant: 36),
+            iconContainer.heightAnchor.constraint(equalToConstant: 36),
+            icon.centerXAnchor.constraint(equalTo: iconContainer.centerXAnchor),
+            icon.centerYAnchor.constraint(equalTo: iconContainer.centerYAnchor),
+            searchButton.widthAnchor.constraint(equalToConstant: 40),
+            searchButton.heightAnchor.constraint(equalToConstant: 40),
+        ])
+        return row
     }
 
     private func setupLayout() {
@@ -97,12 +135,20 @@ final class FridgeViewController: UIViewController {
         bannerCard.contentView.addSubview(bannerStack)
         bannerCard.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(bannerTapped)))
 
-        // 篩選列
-        let filterRow = UIStackView(arrangedSubviews: [locationField, tagField])
-        filterRow.spacing = 10
-        filterRow.distribution = .fillEqually
+        // 篩選列（位置＋標籤＋排序）
+        var sortConfig = UIButton.Configuration.filled()
+        sortConfig.baseBackgroundColor = Theme.surface
+        sortConfig.baseForegroundColor = Theme.primaryDeep
+        sortConfig.image = UIImage(systemName: "arrow.up.arrow.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold))
+        sortConfig.background.cornerRadius = Theme.cornerButton
+        sortButton.configuration = sortConfig
+        sortButton.showsMenuAsPrimaryAction = true
+        sortButton.menu = buildSortMenu()
 
-        let headerStack = UIStackView(arrangedSubviews: [bannerCard, filterRow])
+        let filterRow = UIStackView(arrangedSubviews: [locationField, tagField, sortButton])
+        filterRow.spacing = 10
+
+        let headerStack = UIStackView(arrangedSubviews: [makeBrandRow(), bannerCard, filterRow])
         headerStack.axis = .vertical
         headerStack.spacing = 12
         headerStack.translatesAutoresizingMaskIntoConstraints = false
@@ -136,6 +182,9 @@ final class FridgeViewController: UIViewController {
 
             fab.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             fab.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+
+            locationField.widthAnchor.constraint(equalTo: tagField.widthAnchor),
+            sortButton.widthAnchor.constraint(equalToConstant: 48),
         ])
     }
 
@@ -209,7 +258,7 @@ final class FridgeViewController: UIViewController {
         let actions = SortMethod.allCases.map { method in
             UIAction(title: method.rawValue, state: viewModel.sortOption == method ? .on : .off) { [weak self] _ in
                 self?.viewModel.sortOption = method
-                self?.navigationItem.rightBarButtonItem?.menu = self?.buildSortMenu()
+                self?.sortButton.menu = self?.buildSortMenu()
             }
         }
         return UIMenu(options: .singleSelection, children: actions)
@@ -261,6 +310,10 @@ final class FridgeViewController: UIViewController {
         presentForm(editing: nil)
     }
 
+    @objc private func searchTapped() {
+        present(searchController, animated: true)
+    }
+
     @objc private func bannerTapped() {
         let alertsVC = ExpiryAlertsViewController(viewModel: viewModel)
         if let sheet = alertsVC.sheetPresentationController {
@@ -300,11 +353,15 @@ extension FridgeViewController: UICollectionViewDelegate {
     }
 }
 
-// MARK: - UISearchResultsUpdating
+// MARK: - UISearchResultsUpdating / UISearchControllerDelegate
 
-extension FridgeViewController: UISearchResultsUpdating {
+extension FridgeViewController: UISearchResultsUpdating, UISearchControllerDelegate {
     func updateSearchResults(for searchController: UISearchController) {
         viewModel.searchKeyword = searchController.searchBar.text ?? ""
+    }
+
+    func didDismissSearchController(_ searchController: UISearchController) {
+        viewModel.searchKeyword = ""
     }
 }
 
