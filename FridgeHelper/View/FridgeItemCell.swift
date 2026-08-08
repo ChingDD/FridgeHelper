@@ -18,7 +18,7 @@ final class FridgeItemCell: UICollectionViewCell {
     private let thumbnail = UIImageView()
     private let nameLabel = UILabel()
     private let badge = StatusBadge()
-    private let expiryLabel = UILabel()
+    private let expiryDateLabel = UILabel()
     private let fromChip = PaddedLabel()
     private let stepper = QuantityStepper()
 
@@ -36,9 +36,9 @@ final class FridgeItemCell: UICollectionViewCell {
 
         nameLabel.font = Theme.font(17, .bold)
         nameLabel.textColor = Theme.textPrimary
-
-        expiryLabel.font = Theme.font(13)
-        expiryLabel.textColor = Theme.textSecondary
+        
+        expiryDateLabel.font = Theme.font(13)
+        expiryDateLabel.textColor = Theme.textSecondary
 
         fromChip.font = Theme.font(11, .medium)
         fromChip.textColor = Theme.textSecondary
@@ -49,11 +49,11 @@ final class FridgeItemCell: UICollectionViewCell {
         stepper.minimumValue = 0
         stepper.onChange = { [weak self] value in self?.onQuantityChange?(value) }
 
-        let nameRow = UIStackView(arrangedSubviews: [nameLabel, badge])
+        let nameRow = UIStackView(arrangedSubviews: [nameLabel, UIView()])
         nameRow.spacing = 8
         nameRow.alignment = .center
 
-        let infoRow = UIStackView(arrangedSubviews: [expiryLabel, fromChip, UIView()])
+        let infoRow = UIStackView(arrangedSubviews: [expiryDateLabel, fromChip, UIView()])
         infoRow.spacing = 8
         infoRow.alignment = .center
 
@@ -63,7 +63,7 @@ final class FridgeItemCell: UICollectionViewCell {
         rightColumn.axis = .vertical
         rightColumn.spacing = 8
 
-        let content = UIStackView(arrangedSubviews: [thumbnail, rightColumn])
+        let content = UIStackView(arrangedSubviews: [thumbnail, rightColumn, badge])
         content.spacing = 12
         content.alignment = .center
         content.translatesAutoresizingMaskIntoConstraints = false
@@ -81,6 +81,8 @@ final class FridgeItemCell: UICollectionViewCell {
             content.bottomAnchor.constraint(equalTo: card.contentView.bottomAnchor, constant: -16),
             content.leadingAnchor.constraint(equalTo: card.contentView.leadingAnchor, constant: 20),
             content.trailingAnchor.constraint(equalTo: card.contentView.trailingAnchor, constant: -16),
+            badge.widthAnchor.constraint(equalToConstant: 68),
+            badge.heightAnchor.constraint(equalToConstant: 68),
             thumbnail.widthAnchor.constraint(equalToConstant: 64),
             thumbnail.heightAnchor.constraint(equalToConstant: 64),
         ])
@@ -95,11 +97,11 @@ final class FridgeItemCell: UICollectionViewCell {
 
     func configure(with item: Item) {
         nameLabel.text = item.name
-        expiryLabel.text = "\(Self.dateFormatter.string(from: item.expiryDate)) 到期"
+        expiryDateLabel.text = "\(Self.dateFormatter.string(from: item.expiryDate)) 到期"
 
         let status = ItemStatus(expiryDate: item.expiryDate)
         badge.status = status
-        card.edgeColor = status.color
+        
 
         if let image = item.image.flatMap(UIImage.init) {
             thumbnail.image = image
