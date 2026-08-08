@@ -20,7 +20,6 @@ final class MainTabBarController: UITabBarController {
     override func viewDidLoad() {
         super.viewDidLoad()
         tabBar.isHidden = true
-        view.backgroundColor = Theme.background
 
         floatingBar.onSelect = { [weak self] index in
             self?.selectedIndex = index
