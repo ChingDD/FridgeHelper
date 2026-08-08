@@ -32,6 +32,12 @@ enum SortMethod: String, CaseIterable {
 }
 
 class MainViewModel {
+    /// 免費方案的食材上限；付費方案由外部注入更高的值
+    static let defaultItemCapacity = 100
+
+    /// 這座冰箱實際可新增的食材上限
+    let itemCapacity: Int
+
     // Inputs (ViewController writes)
     @Published var sortOption: SortMethod = .取消
     @Published var searchKeyword: String = ""
@@ -40,6 +46,8 @@ class MainViewModel {
     @Published private(set) var displayedItems: [Item] = []
     @Published private(set) var expiredItems: [Item] = []
     @Published private(set) var expiredCount: Int = 0
+    /// 已建立的食材總數（不受篩選／搜尋影響）
+    @Published private(set) var savedItemCount: Int = 0
 
     // User-defined lists（篩選選取狀態也在這兩個 VM 上）
     let tags: StringListViewModel
@@ -65,11 +73,12 @@ class MainViewModel {
         }
     }
 
-    init(tags: StringListViewModel, locations: StringListViewModel, local: ItemRepositoryProtocol, syncFromCloud: (() async throws -> Void)? = nil) {
+    init(tags: StringListViewModel, locations: StringListViewModel, local: ItemRepositoryProtocol, syncFromCloud: (() async throws -> Void)? = nil, itemCapacity: Int = MainViewModel.defaultItemCapacity) {
         self.tags = tags
         self.locations = locations
         self.localRepository = local
         self.syncFromCloud = syncFromCloud
+        self.itemCapacity = itemCapacity
         loadItems()
         setupPipeline()
     }
@@ -140,6 +149,7 @@ class MainViewModel {
             location: locations.selected,
             tag: tags.selected
         )
+        savedItemCount = savedItems.count
         let expired = savedItems.filter { $0.expiryDate.timeIntervalSinceNow <= 259200 }
         expiredItems = expired
         expiredCount = expired.count

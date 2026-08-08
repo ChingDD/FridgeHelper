@@ -24,6 +24,7 @@ final class FridgeViewController: UIViewController {
     private let sortButton = UIButton()
     private let fab = FloatingActionButton()
     private let emptyLabel = UILabel()
+    private let savedItemNumLabel = UILabel()
 
     private lazy var searchController: UISearchController = {
         let searchController = UISearchController(searchResultsController: nil)
@@ -147,10 +148,15 @@ final class FridgeViewController: UIViewController {
 
         let filterRow = UIStackView(arrangedSubviews: [locationField, tagField, sortButton])
         filterRow.spacing = 10
+        
+        savedItemNumLabel.font = Theme.font(13, .semibold)
+        savedItemNumLabel.textColor = Theme.textSecondary
+        savedItemNumLabel.textAlignment = .right
 
-        let headerStack = UIStackView(arrangedSubviews: [makeBrandRow(), bannerCard, filterRow])
+        let headerStack = UIStackView(arrangedSubviews: [makeBrandRow(), bannerCard, filterRow, savedItemNumLabel])
         headerStack.axis = .vertical
         headerStack.spacing = 12
+        headerStack.setCustomSpacing(8, after: filterRow)
         headerStack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(headerStack)
 
@@ -206,6 +212,14 @@ final class FridgeViewController: UIViewController {
         viewModel.$displayedItems
             .receive(on: RunLoop.main)
             .sink { [weak self] items in self?.applySnapshot(for: items) }
+            .store(in: &cancellables)
+
+        viewModel.$savedItemCount
+            .receive(on: RunLoop.main)
+            .sink { [weak self] count in
+                guard let self else { return }
+                self.savedItemNumLabel.text = "食材 \(count) / \(self.viewModel.itemCapacity)"
+            }
             .store(in: &cancellables)
 
         viewModel.$expiredCount
