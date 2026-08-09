@@ -25,6 +25,13 @@
 - 已完成即時表單驗證。
 - 已使用台灣日期格式。
 
+### 食材 cell 狀態 UI
+- 已改成圓形狀態圖示與指定底色規格。
+- 已包含「未過期 / 快過期 / 已過期」三種狀態樣式。
+
+### 到期資訊顯示規格
+- 列表已依規格顯示過期年月份，以及距離過期剩幾天。
+
 ### 過期提醒基礎版
 - 已支援過期前 3 天與當天過期推播通知。
 
@@ -42,15 +49,16 @@
 
 ## 未完成
 
-### 食材 cell 狀態 UI
-- 需改成圓形狀態圖示與指定底色規格。
-- 包含「未過期 / 快過期 / 已過期」三種狀態樣式。
-
-### 到期資訊顯示規格
-- 列表需符合「顯示過期年月份，以及距離過期剩幾天」的呈現方式。
-
 ### 列表上方數量 counter
 - 需顯示 `0(已新增) / 100(可新增)` 的數量資訊。
+
+### 食材數量上限控管（[定案版商業規格＋技術設計](FridgeBusinessAndTechnicalDesign.md)）
+
+- 階段一：完成目前單一 Default 冰箱的額度控管；免費版 100 項、家庭版 500 項，只計算自己的 ShareZone，sharedDB 不計入，所有 CloudKit 資料永遠完整同步。
+- 階段二：建立多冰箱資料基礎；新增 Fridge Model、Item.fridgeID、多 Zone Repository、SyncCoordinator 與既有資料遷移。
+- 階段三：完成多冰箱 UI 與共享；新增冰箱選擇首頁、建立／重新命名／刪除冰箱、逐冰箱成員管理及 sharedDB 寫入。
+- 階段四：完成 StoreKit 家庭版永久內購；可擁有三座冰箱、每座 500 項、每座最多邀請 4 位成員，並支援購買、Restore、退款及撤銷權益。
+- 階段五：完成多設備競態、新設備恢復、多 shared zones、共享撤銷、離線與 StoreKit Sandbox 測試。
 
 ### 通知可設定化
 - 需提供通知開關。
@@ -80,6 +88,14 @@
 ### iCloud 家庭分享 - 移除特定成員
 - 目前家庭分享其他能力已完成。
 - 尚缺「移除特定成員」功能。
+
+### [Bug] shared zone change token key 碰撞
+
+- 現況：shared zone token key 只包含 `zoneName`；不同 Owner 都使用 `ShareZone` 時會共用 `syncToken_sharedZone_ShareZone`。
+- 情境：同一位使用者加入「爸爸／ShareZone」與「媽媽／ShareZone」後，兩座 Zone 會互相讀取、覆蓋或刪除對方的 token。
+- 影響：可能造成 change token 錯誤、同步失敗、反覆完整同步或漏套用變更。
+- 修正：token key 改為包含 database scope、`ownerName` 與 `zoneName`，並集中管理 token key 的建立方式。
+- 遷移：清除無法判斷 Owner 的舊 shared zone token、重建 sharedDB 同步進度，並對現有所有 shared zones 執行一次完整同步。
 
 ## Enhance
 
