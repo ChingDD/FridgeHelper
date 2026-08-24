@@ -15,6 +15,28 @@ struct CloudItemChange {
     let updatedByName: String?
 }
 
+/// change token 的 UserDefaults key 產生器
+///
+/// key 必須同時包含 database scope、ownerName 與 zoneName。
+/// 不同 Owner 的 zone 可能同名（例如爸爸與媽媽的 zone 都叫 ShareZone），
+/// 只用 zoneName 會讓兩座 zone 共用同一個 token 而互相覆蓋。
+enum SyncTokenKey {
+    static let sharedDatabase = "syncToken_sharedDB"
+
+    static func zone(_ zoneID: CKRecordZone.ID, scope: CKDatabase.Scope) -> String {
+        "syncToken_\(name(for: scope))_\(zoneID.ownerName)_\(zoneID.zoneName)"
+    }
+
+    private static func name(for scope: CKDatabase.Scope) -> String {
+        switch scope {
+        case .public: return "public"
+        case .private: return "private"
+        case .shared: return "shared"
+        @unknown default: return "unknown"
+        }
+    }
+}
+
 @MainActor
 class SyncCoordinator {
 
@@ -47,7 +69,7 @@ class SyncCoordinator {
     // MARK: - Private DB（自己的 ShareZone）
 
     private func fetchPrivateChanges() async throws -> [CloudItemChange] {
-        let tokenKey = "syncToken_private_\(zoneMgr.zoneID.zoneName)"
+        let tokenKey = SyncTokenKey.zone(zoneMgr.zoneID, scope: .private)
         let savedToken = loadToken(forKey: tokenKey)
 
         let (changed, deleted, newToken) = try await fetchZoneChanges(
@@ -68,7 +90,7 @@ class SyncCoordinator {
     // MARK: - Shared DB（被邀請進來的 zones）
 
     private func fetchSharedChanges() async throws -> [CloudItemChange] {
-        let dbTokenKey = "syncToken_sharedDB"
+        let dbTokenKey = SyncTokenKey.sharedDatabase
         let savedDBToken = loadToken(forKey: dbTokenKey)
         var itemChanges: [CloudItemChange] = []
 
@@ -80,7 +102,7 @@ class SyncCoordinator {
 
         // Step 2：對每個變動的 zone 抓 record 差異
         for zoneID in changedZoneIDs {
-            let zoneTokenKey = "syncToken_sharedZone_\(zoneID.zoneName)"
+            let zoneTokenKey = SyncTokenKey.zone(zoneID, scope: .shared)
             let savedZoneToken = loadToken(forKey: zoneTokenKey)
 
             let (changed, deleted, newZoneToken) = try await fetchZoneChanges(
@@ -99,7 +121,7 @@ class SyncCoordinator {
 
         // Step 3：被刪除的 zone（對方撤銷共享）→ 清除 token
         for zoneID in deletedZoneIDs {
-            UserDefaults.standard.removeObject(forKey: "syncToken_sharedZone_\(zoneID.zoneName)")
+            UserDefaults.standard.removeObject(forKey: SyncTokenKey.zone(zoneID, scope: .shared))
         }
 
         if let token = newDBToken {
