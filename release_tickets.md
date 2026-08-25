@@ -47,18 +47,30 @@
 - 已完成邀請成員功能。
 - 已完成共享狀態處理。
 
-## 未完成
-
 ### 列表上方數量 counter
-- 需顯示 `0(已新增) / 100(可新增)` 的數量資訊。
+- 已顯示 `食材 已新增 / 可新增` 的數量資訊。
+- 已改為只計算自己 zone 的食材，共享冰箱不計入。
+
+### 食材數量上限控管 - 階段一
+- 已建立集中式方案限制 `FridgePlan`，免費版 100 項、家庭版 500 項不再散落於 ViewController。
+- 已將方案來源抽成 `FridgePlanProviding`，目前固定回傳免費方案。
+- 已在按下「＋」與表單儲存前各檢查一次容量，被擋下時保留表單內容。
+- 已確保更新與刪除不受容量限制。
+- 未套用容量限制於 CloudKit 同步，sharedDB 與自己的 zone 都維持完整同步。
+
+## 未完成
 
 ### 食材數量上限控管（[定案版商業規格＋技術設計](FridgeBusinessAndTechnicalDesign.md)）
 
-- 階段一：完成目前單一 Default 冰箱的額度控管；免費版 100 項、家庭版 500 項，只計算自己的 ShareZone，sharedDB 不計入，所有 CloudKit 資料永遠完整同步。
 - 階段二：建立多冰箱資料基礎；新增 Fridge Model、Item.fridgeID、多 Zone Repository、SyncCoordinator 與既有資料遷移。
 - 階段三：完成多冰箱 UI 與共享；新增冰箱選擇首頁、建立／重新命名／刪除冰箱、逐冰箱成員管理及 sharedDB 寫入。
 - 階段四：完成 StoreKit 家庭版永久內購；可擁有三座冰箱、每座 500 項、每座最多邀請 4 位成員，並支援購買、Restore、退款及撤銷權益。
 - 階段五：完成多設備競態、新設備恢復、多 shared zones、共享撤銷、離線與 StoreKit Sandbox 測試。
+
+階段一已預留的接點：
+
+- 階段二綁定選定冰箱時，改注入 `MainViewModel.fridgeZoneOwnerName`，即可讓共享冰箱套用 Owner 的方案。
+- 階段四完成 StoreKit 後，只需在 `LunchingViewController` 改注入依購買權益判斷的 `FridgePlanProviding` 實作。
 
 ### 通知可設定化
 - 需提供通知開關。
