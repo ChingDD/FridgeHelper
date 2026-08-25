@@ -196,9 +196,7 @@ sharedDB
 ```text
 FridgeMetadata
 ├─ fridgeID
-├─ displayName
-├─ tier
-├─ schemaVersion
+├─ plan
 ├─ createdAt
 └─ updatedAt
 
@@ -210,6 +208,8 @@ CKShare
 
 `FridgeMetadata` 是未來新增的自訂 CKRecord，目前不存在。它保存冰箱資料，不把 `itemCount` 當唯一真相。一般顯示由本機該 `fridgeID` 的 Item 數量計算，避免多設備同時寫入 counter 產生 lost update。
 
+冰箱名稱一律存在本機、不同步給其他成員，因此 `FridgeMetadata` 不需要 `displayName`。是否加入 `schemaVersion` 於 2B 建立 `FridgeMetadata` 時一併定案，詳見 release_tickets 的未知欄位抹除 ticket。
+
 目前 Zone 主要包含 Item Record、Item 圖片欄位使用的 CKAsset，以及共享後存在的 CKShare Record。
 
 ## 本機 SwiftData 模型
@@ -220,16 +220,23 @@ CKShare
 
 | 欄位 | 用途 |
 |---|---|
-| `id` | App 內穩定識別碼 |
-| `name` | 冰箱顯示名稱 |
+| `id` | 字串化的 zoneID，格式 `"<ownerName>\|<zoneName>"` |
+| `name` | 冰箱顯示名稱；純本機，不同步 |
 | `zoneName` | CloudKit Zone 名稱 |
-| `zoneOwnerName` | CloudKit Zone Owner |
-| `tier` | `free`／`familyLifetime` |
-| `schemaVersion` | 資料格式版本 |
+| `ownerName` | CloudKit Zone Owner |
+| `plan` | `free`／`familyLifetime` |
 | `createdAt` | 建立時間 |
 | `updatedAt` | 更新時間 |
+| `tags` | 這座冰箱的標籤清單 |
+| `locations` | 這座冰箱的儲存位置清單 |
 
-是否為自己的冰箱可由 `zoneOwnerName` 判斷，不需額外保存 `isOwned`。
+是否為自己的冰箱可由 `ownerName` 判斷，不需額外保存 `isOwned`。
+
+`id` 使用字串化 zoneID，`SyncCoordinator` 可從 `record.recordID.zoneID` 直接算出 `fridgeID`，不需查表，也不會有 record 先到而 Fridge 尚未建立的順序問題。
+
+`ownerName` 必須正規化：判定為自己的 Zone 時一律寫入 `CKCurrentUserDefaultName`。同一座冰箱在 Owner 裝置上看到 `__defaultOwner__`、在 participant 裝置上看到真實 user record name，不正規化會在本機產生兩筆 Fridge。
+
+本機 Fridge 不保存 `schemaVersion`，本機資料格式版本由 SwiftData migration 管理。`FridgePlan` 需加上 `String, Codable` raw value 才能穩定持久化到 SwiftData。
 
 ### Item
 
@@ -287,7 +294,7 @@ FamilyLifetime
 
 - IAP 跟著 App Store 的 Media & Purchases 帳號。
 - CloudKit Zone 跟著 iCloud 帳號，兩者不一定相同。
-- 參與者無法直接驗證 Owner 的 StoreKit 購買，只能讀取 Zone 內的 `FridgeMetadata.tier`。
+- 參與者無法直接驗證 Owner 的 StoreKit 購買，只能讀取 Zone 內的 `FridgeMetadata.plan`。
 - Owner 退款後若未再次開啟 App，shared Zone 的方案 metadata 不會立即降級。
 
 初期採 best-effort 模式。若未來需要嚴格綁定權益與即時處理退款，才加入自有帳號、後端、App Store Server Notifications 與 `originalTransactionID` 綁定。
@@ -348,6 +355,14 @@ FamilyLifetime
 - 未來 ViewModel 綁定一座選定冰箱。
 - `savedItemCount` 改為該冰箱數量。
 - `itemCapacity` 由該冰箱 Owner 的方案決定。
+- 與兩個 `StringListViewModel` 都必須在選定冰箱時才建立，不能再是全 App 單例。`LunchingViewController` 改為 `makeMainViewModel(for: Fridge)` 形式。
+
+### StringListViewModel
+
+- 目前標籤與儲存位置存在兩個固定的 UserDefaults key，全 App 共用。
+- 未來改為逐冰箱，直接掛在 `Fridge` 上，資料跟著冰箱生命週期走，刪除冰箱或共享被撤銷時一併清除。
+- store 抽成 protocol，新增讀寫 `Fridge` 欄位的實作；`ManageListViewController` 不需修改。
+- 清單為本機資料，同一座共享冰箱的不同成員看到的清單不一致。要一致需將清單同步至 `FridgeMetadata`。
 
 ### FridgeViewController
 
@@ -407,12 +422,27 @@ databaseScope＋ownerName＋zoneName
 
 ### 階段二：多冰箱資料基礎
 
+拆成 2A／2B／2C 三段，逐段可獨立驗證。
+
+**2A：純本機資料基礎**
+
 - 新增 Fridge SwiftData Model。
-- Item 新增 `fridgeID`。
+- Item 新增 `fridgeID`；`fridgeID` 只存在本機，不寫進 CKRecord，雲端的真相是 zoneID。
+- 標籤與儲存位置改為逐冰箱。
+- 完成舊資料遷移。舊有 shared Item 只存了 `zoneOwnerName`、沒有 zoneName，遷移時假設 `zoneName = "ShareZone"`；舊版本來就只支援單一 Zone，因此安全。
+- 不動 UI，也不動 CloudKit 寫入路徑。
+
+**2B：雲端路由與多 private zones**
+
 - ZoneManager 支援任意 Zone。
-- Repository 依 fridge 路由。
-- SyncCoordinator 支援多 Zone。
-- 完成舊資料遷移。
+- CloudRepository 依 fridge 路由，包含在別人的冰箱新增食材時寫入 sharedDB。
+- SyncCoordinator 列舉所有 private zones。
+- 引入 `FridgeMetadata`。
+
+**2C：sharedDB 多 Zone**
+
+- 修掉 `ShareManager.fetchParticipatingShare()` 只取 `zones.first` 的限制。
+- 每座冰箱各自建立 CKShare。
 
 ### 階段三：多冰箱 UI 與共享
 
