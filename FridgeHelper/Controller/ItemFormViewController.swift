@@ -11,7 +11,8 @@ import AVFoundation
 
 final class ItemFormViewController: UIViewController {
 
-    var onSave: ((Item) -> Void)?
+    /// 回傳被容量擋下的原因；nil 代表已受理，表單才會關閉
+    var onSave: ((Item) -> ItemCapacityRejection?)?
 
     private let editViewModel: EditViewModel
     private let locations: StringListViewModel
@@ -290,7 +291,14 @@ final class ItemFormViewController: UIViewController {
             present(alert, animated: true)
             return
         }
-        onSave?(item)
+        // 表單開著的期間其他裝置可能已把冰箱填滿，儲存前再檢查一次
+        if let rejection = onSave.flatMap({ $0(item) }) {
+            // 不關閉表單，使用者刪掉食材後可以直接再存一次
+            let alert = UIAlertController(title: rejection.alertTitle, message: rejection.alertMessage, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "確定", style: .default))
+            present(alert, animated: true)
+            return
+        }
         dismiss(animated: true)
     }
 

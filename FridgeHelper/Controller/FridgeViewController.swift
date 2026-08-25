@@ -321,7 +321,19 @@ final class FridgeViewController: UIViewController {
     // MARK: - Actions
 
     @objc private func addTapped() {
+        // 先擋在這裡，避免使用者填完整張表單才發現不能存
+        if let rejection = viewModel.addItemRejection {
+            presentCapacityAlert(rejection)
+            return
+        }
         presentForm(editing: nil)
+    }
+
+    /// 階段四導入 StoreKit 後，ownerCanUpgrade 可在這裡加上「升級家庭版」動作
+    private func presentCapacityAlert(_ rejection: ItemCapacityRejection) {
+        let alert = UIAlertController(title: rejection.alertTitle, message: rejection.alertMessage, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "確定", style: .default))
+        present(alert, animated: true)
     }
 
     @objc private func searchTapped() {
@@ -345,12 +357,13 @@ final class FridgeViewController: UIViewController {
         )
         let formVC = ItemFormViewController(editViewModel: editViewModel, locations: viewModel.locations)
         formVC.onSave = { [weak self] newItem in
-            guard let self else { return }
+            guard let self else { return nil }
+            // 更新永遠放行，只有新增要經過容量閘門
             if let item {
                 self.viewModel.updateItem(item, with: newItem)
-            } else {
-                self.viewModel.addItem(newItem)
+                return nil
             }
+            return self.viewModel.addItem(newItem)
         }
         let nav = UINavigationController(rootViewController: formVC)
         present(nav, animated: true)

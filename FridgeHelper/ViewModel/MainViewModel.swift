@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import CloudKit
 
 protocol NotificationManagerDelegate: AnyObject {
     func rescheduleNotification(for item: Item)
@@ -32,11 +33,17 @@ enum SortMethod: String, CaseIterable {
 }
 
 class MainViewModel {
-    /// 免費方案的食材上限；付費方案由外部注入更高的值
-    static let defaultItemCapacity = 100
+    /// 方案來源；階段四接上 StoreKit 後改由購買權益決定
+    private let planProvider: FridgePlanProviding
+
+    /// 這座冰箱的 Zone Owner。階段一只有自己的 Default 冰箱，階段二改由選定的冰箱注入
+    private let fridgeZoneOwnerName: String = CKCurrentUserDefaultName
+
+    /// 這座冰箱 Owner 的方案；共享冰箱沿用 Owner 的方案，不看自己買了什麼
+    private var plan: FridgePlan { planProvider.plan(forZoneOwner: fridgeZoneOwnerName) }
 
     /// 這座冰箱實際可新增的食材上限
-    let itemCapacity: Int
+    var itemCapacity: Int { plan.itemsPerFridge }
 
     // Inputs (ViewController writes)
     @Published var sortOption: SortMethod = .取消
@@ -46,7 +53,7 @@ class MainViewModel {
     @Published private(set) var displayedItems: [Item] = []
     @Published private(set) var expiredItems: [Item] = []
     @Published private(set) var expiredCount: Int = 0
-    /// 已建立的食材總數（不受篩選／搜尋影響）
+    /// 自己冰箱已建立的食材數（不受篩選／搜尋影響；共享冰箱的食材不計入）
     @Published private(set) var savedItemCount: Int = 0
 
     // User-defined lists（篩選選取狀態也在這兩個 VM 上）
@@ -73,12 +80,12 @@ class MainViewModel {
         }
     }
 
-    init(tags: StringListViewModel, locations: StringListViewModel, local: ItemRepositoryProtocol, syncFromCloud: (() async throws -> Void)? = nil, itemCapacity: Int = MainViewModel.defaultItemCapacity) {
+    init(tags: StringListViewModel, locations: StringListViewModel, local: ItemRepositoryProtocol, planProvider: FridgePlanProviding, syncFromCloud: (() async throws -> Void)? = nil) {
         self.tags = tags
         self.locations = locations
         self.localRepository = local
+        self.planProvider = planProvider
         self.syncFromCloud = syncFromCloud
-        self.itemCapacity = itemCapacity
         loadItems()
         setupPipeline()
     }
@@ -149,7 +156,7 @@ class MainViewModel {
             location: locations.selected,
             tag: tags.selected
         )
-        savedItemCount = savedItems.count
+        savedItemCount = ownedItemCount
         let expired = savedItems.filter { $0.expiryDate.timeIntervalSinceNow <= 259200 }
         expiredItems = expired
         expiredCount = expired.count
@@ -169,9 +176,28 @@ class MainViewModel {
         return result
     }
 
+    // MARK: - 容量
+
+    /// 自己 zone 的食材數；共享冰箱的食材不佔額度
+    private var ownedItemCount: Int {
+        savedItems.filter { $0.isInOwnZone }.count
+    }
+
+    /// 目前是否還能新增食材；nil 代表可以新增。更新與刪除永遠不檢查
+    var addItemRejection: ItemCapacityRejection? {
+        guard ownedItemCount >= itemCapacity else { return nil }
+        switch plan {
+        case .free: return .ownerCanUpgrade(capacity: itemCapacity)
+        case .familyLifetime: return .planMaxReached(capacity: itemCapacity)
+        }
+    }
+
     // MARK: - CRUD
 
-    func addItem(_ item: Item) {
+    /// 新增食材。所有新增入口都必須走這裡，回傳被容量擋下的原因，nil 代表已受理
+    func addItem(_ item: Item) -> ItemCapacityRejection? {
+        if let rejection = addItemRejection { return rejection }
+
         savedItems.insert(item, at: 0)
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -183,6 +209,7 @@ class MainViewModel {
                 printInfo("Add Item Error: \(error)")
             }
         }
+        return nil
     }
 
     func removeItem(_ item: Item) {

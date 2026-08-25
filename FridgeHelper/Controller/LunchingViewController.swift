@@ -42,6 +42,8 @@ class LunchingViewController: UIViewController {
             tags: sharedTagListViewModel,
             locations: sharedLocationListViewModel,
             local: compositeRepo,
+            // 階段四完成 StoreKit 後，改注入依購買權益判斷的實作
+            planProvider: FreeFridgePlanProvider(),
             syncFromCloud: {
                 guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
                 try await appDelegate.syncCloudToLocal()

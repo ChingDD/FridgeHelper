@@ -8,6 +8,7 @@
 import Foundation
 import UIKit
 import SwiftData
+import CloudKit
 
 @Model
 class Item {
@@ -58,5 +59,12 @@ class Item {
         case "室溫": return 2
         default: return 1
         }
+    }
+
+    // MARK: - Zone 歸屬
+
+    /// 是否存放在自己的 private zone；別人分享進來的食材不佔自己的額度
+    var isInOwnZone: Bool {
+        zoneOwnerName == nil || zoneOwnerName == CKCurrentUserDefaultName
     }
 }
