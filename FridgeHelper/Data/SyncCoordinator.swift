@@ -9,6 +9,7 @@
 
 import Foundation
 import CloudKit
+import SwiftData
 
 struct CloudItemChange {
     let itemName: String
@@ -43,6 +44,7 @@ class SyncCoordinator {
     private let localRepository: ItemRepositoryProtocol
     private let zoneMgr: ZoneManaging
     private let ckContainer: CKContainer
+    private let modelContainer: ModelContainer
 
     private var privateDatabase: CKDatabase { ckContainer.privateCloudDatabase }
     private var sharedDatabase: CKDatabase { ckContainer.sharedCloudDatabase }
@@ -50,10 +52,12 @@ class SyncCoordinator {
     init(
         localRepository: ItemRepositoryProtocol,
         zoneMgr: ZoneManaging,
+        modelContainer: ModelContainer,
         containerIdentifier: String = "iCloud.FridgeHelper"
     ) {
         self.localRepository = localRepository
         self.zoneMgr = zoneMgr
+        self.modelContainer = modelContainer
         self.ckContainer = CKContainer(identifier: containerIdentifier)
     }
 
@@ -230,9 +234,11 @@ class SyncCoordinator {
         // 每筆寫入前重新查詢本地，不跨 await 沿用同一份清單快照，
         // 避免套用期間本地已增刪時操作到過時的物件參考
         for record in changed {
+            try ensureFridgeExists(for: record.recordID.zoneID)
             let incoming = ItemRecordMapper.item(from: record)
             let existingItems = try await localRepository.fetch()
             if let existing = existingItems.first(where: { $0.timeStamp == incoming.timeStamp }) {
+                existing.fridgeID = incoming.fridgeID
                 existing.name = incoming.name
                 existing.number = incoming.number
                 existing.unit = incoming.unit
@@ -255,6 +261,31 @@ class SyncCoordinator {
                 try await localRepository.delete(item: item)
             }
         }
+    }
+
+    // MARK: - Fridge 歸戶
+
+    /// record 所在 zone 對應的 Fridge，不存在就建立。
+    /// 這條路徑涵蓋新裝置與重新安裝：本機 Fridge 沒有同步，靠 record 的 zoneID 反推重建。
+    /// 新建的冰箱使用系統預設清單；共享冰箱名稱先用 fallback，
+    /// 依 `CKShare.owner` 命名要等取得該 zone 的 CKShare
+    private func ensureFridgeExists(for zoneID: CKRecordZone.ID) throws {
+        let fridgeID = Fridge.makeID(zoneName: zoneID.zoneName, ownerName: zoneID.ownerName)
+        var descriptor = FetchDescriptor<Fridge>(predicate: #Predicate { $0.fridgeID == fridgeID })
+        descriptor.fetchLimit = 1
+
+        let context = modelContainer.mainContext
+        guard try context.fetch(descriptor).isEmpty else { return }
+
+        let isOwnZone = Fridge.normalizedOwnerName(zoneID.ownerName) == CKCurrentUserDefaultName
+        context.insert(Fridge(
+            zoneName: zoneID.zoneName,
+            ownerName: zoneID.ownerName,
+            name: isOwnZone ? "我的冰箱" : "共享的冰箱",
+            tags: FridgeListDefaults.tags,
+            locations: FridgeListDefaults.locations
+        ))
+        try context.save()
     }
 
     // MARK: - Token Persistence

@@ -23,12 +23,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             fatalError("SwiftData 初始化失敗: \(error)")
         }
 
+        // 必須同步完成：LunchingViewController 組裝時就要有冰箱可綁定
+        migrateFridgesIfNeeded()
+
         // Sync Cloud Data To Local
         // Plan Notification
         Task {
             do {
                 await migrateStoreLocationIfNeeded()
-                await migrateFridgesIfNeeded()
                 try await syncCloudToLocal()
                 planAllItemsExpirationNotification()
             } catch {
@@ -218,9 +220,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
     }
 
-    /// 一次性本地遷移：建立 Default 冰箱並把既有食材歸戶。必須在雲端同步前完成
+    /// 一次性本地遷移：建立 Default 冰箱並把既有食材歸戶。必須在畫面組裝與雲端同步之前完成
     @MainActor
-    private func migrateFridgesIfNeeded() async {
+    private func migrateFridgesIfNeeded() {
         guard let stack = sharedStack else { return }
         do {
             try FridgeMigrator(container: stack.container).migrateIfNeeded()
@@ -246,7 +248,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     private func performSync(shouldNotifyChanges: Bool) async throws {
         guard let stack = sharedStack else { return }
         let syncMgr = SyncCoordinator(localRepository: SwiftDataItemRepository(container: stack.container),
-                                      zoneMgr: ZoneManager())
+                                      zoneMgr: ZoneManager(),
+                                      modelContainer: stack.container)
 
         let changes = try await syncMgr.fetchChanges()
         if shouldNotifyChanges {

@@ -63,6 +63,16 @@ class Fridge {
     }
 }
 
+/// 記住上次選取的冰箱。階段三接上冰箱選擇首頁後改由該頁寫入
+enum SelectedFridgeStore {
+    private static let key = "app.fridge.selectedID"
+
+    static var fridgeID: String? {
+        get { UserDefaults.standard.string(forKey: key) }
+        set { UserDefaults.standard.set(newValue, forKey: key) }
+    }
+}
+
 /// 標籤／儲存位置的系統預設值，以及 2A 之前清單存放的 UserDefaults key（遷移來源）
 enum FridgeListDefaults {
     static let tags = ["蔬菜", "水果", "肉類", "魚類"]

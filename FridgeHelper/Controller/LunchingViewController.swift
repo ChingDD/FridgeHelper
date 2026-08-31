@@ -7,6 +7,7 @@
 //  組合根：建立 Repository / ViewModel，啟動動畫後切換到 MainTabBarController
 
 import UIKit
+import SwiftData
 
 class LunchingViewController: UIViewController {
 
@@ -27,18 +28,21 @@ class LunchingViewController: UIViewController {
         guard let stack = (UIApplication.shared.delegate as? AppDelegate)?.sharedStack else {
             fatalError("SharedStack 尚未初始化")
         }
+        let context = stack.container.mainContext
+        let fridge = selectedFridge(in: context)
         let localRepo = SwiftDataItemRepository(container: stack.container)
         let cloudRepo = CloudRepository(zoneMgr: ZoneManager())
         let compositeRepo = CompositeRepository(local: localRepo, cloud: cloudRepo)
         sharedTagListViewModel = StringListViewModel(
-            store: UserDefaultsStringListStore(key: FridgeListDefaults.legacyTagsKey),
+            store: FridgeStringListStore(fridge: fridge, keyPath: \.tags, context: context),
             defaults: FridgeListDefaults.tags
         )
         sharedLocationListViewModel = StringListViewModel(
-            store: UserDefaultsStringListStore(key: FridgeListDefaults.legacyLocationsKey),
+            store: FridgeStringListStore(fridge: fridge, keyPath: \.locations, context: context),
             defaults: FridgeListDefaults.locations
         )
         sharedMainViewModel = MainViewModel(
+            fridge: fridge,
             tags: sharedTagListViewModel,
             locations: sharedLocationListViewModel,
             local: compositeRepo,
@@ -49,6 +53,21 @@ class LunchingViewController: UIViewController {
                 try await appDelegate.syncCloudToLocal()
             }
         )
+    }
+
+    /// 上次選取的冰箱；找不到就退回 Default 冰箱。階段三接上冰箱選擇首頁後改由該頁決定
+    private func selectedFridge(in context: ModelContext) -> Fridge {
+        let fridges = (try? context.fetch(FetchDescriptor<Fridge>())) ?? []
+        let defaultID = Fridge.makeID(zoneName: ZoneManager.defaultZoneName, ownerName: nil)
+        let targetID = SelectedFridgeStore.fridgeID ?? defaultID
+
+        guard let fridge = fridges.first(where: { $0.fridgeID == targetID })
+                ?? fridges.first(where: { $0.fridgeID == defaultID }) else {
+            // FridgeMigrator 在 didFinishLaunching 就會建立 Default 冰箱，正常不會走到這裡
+            fatalError("找不到可用的冰箱，Fridge 遷移未完成")
+        }
+        SelectedFridgeStore.fridgeID = fridge.fridgeID
+        return fridge
     }
 
     private func makeMainTabBarController() -> MainTabBarController {

@@ -44,7 +44,7 @@ enum ItemRecordMapper {
             imageData = try? Data(contentsOf: url)
         }
 
-        return Item(
+        let item = Item(
             name: record["name"] as? String ?? "",
             number: (record["quantity"] as? Int64).map { Int($0) } ?? 0,
             unit: record["unit"] as? String ?? "pcs",
@@ -57,5 +57,11 @@ enum ItemRecordMapper {
             zoneOwnerName: record.recordID.zoneID.ownerName,
             updatedByName: record["updatedByName"] as? String
         )
+        // fridgeID 不寫進 CKRecord；雲端的真相是 record 所在的 zone，這裡反推回本機歸屬
+        item.fridgeID = Fridge.makeID(
+            zoneName: record.recordID.zoneID.zoneName,
+            ownerName: record.recordID.zoneID.ownerName
+        )
+        return item
     }
 }

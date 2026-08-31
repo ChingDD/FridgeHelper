@@ -2,13 +2,20 @@
 //  StringListViewModel.swift
 //  FridgeHelper
 //
-//  使用者自訂字串清單（標籤、儲存位置）：UserDefaults 持久化＋選取狀態
+//  使用者自訂字串清單（標籤、儲存位置）：持久化＋選取狀態
 //
 
 import Foundation
 import Combine
+import SwiftData
 
-struct UserDefaultsStringListStore {
+protocol StringListStore {
+    func fetch() -> [String]
+    func save(_ values: [String])
+}
+
+/// 多冰箱之前的清單來源，保留供 `FridgeMigrator` 的遷移路徑對照
+struct UserDefaultsStringListStore: StringListStore {
     let key: String
 
     func fetch() -> [String] {
@@ -20,13 +27,30 @@ struct UserDefaultsStringListStore {
     }
 }
 
+/// 讀寫某座冰箱上的清單欄位。清單跟著冰箱生命週期走，刪除冰箱時一併清除
+struct FridgeStringListStore: StringListStore {
+    let fridge: Fridge
+    let keyPath: ReferenceWritableKeyPath<Fridge, [String]>
+    let context: ModelContext
+
+    func fetch() -> [String] {
+        fridge[keyPath: keyPath]
+    }
+
+    func save(_ values: [String]) {
+        fridge[keyPath: keyPath] = values
+        fridge.updatedAt = Date()
+        try? context.save()
+    }
+}
+
 class StringListViewModel {
     @Published private(set) var values: [String]
     @Published var selected: String?
 
-    private let store: UserDefaultsStringListStore
+    private let store: StringListStore
 
-    init(store: UserDefaultsStringListStore, defaults: [String]) {
+    init(store: StringListStore, defaults: [String]) {
         self.store = store
         let saved = store.fetch()
         self.values = saved.isEmpty ? defaults : saved
