@@ -25,6 +25,14 @@ class SwiftDataItemRepository: ItemRepositoryProtocol {
         return try context.fetch(descriptor)
     }
 
+    func fetch(fridgeID: String) async throws -> [Item] {
+        try context.fetch(descriptor(for: fridgeID))
+    }
+
+    func count(fridgeID: String) async throws -> Int {
+        try context.fetchCount(descriptor(for: fridgeID))
+    }
+
     func add(item: Item) async throws {
         context.insert(item)
         try context.save()
@@ -37,5 +45,12 @@ class SwiftDataItemRepository: ItemRepositoryProtocol {
     func delete(item: Item) async throws {
         context.delete(item)
         try context.save()
+    }
+
+    private func descriptor(for fridgeID: String) -> FetchDescriptor<Item> {
+        FetchDescriptor<Item>(
+            predicate: #Predicate { $0.fridgeID == fridgeID },
+            sortBy: [SortDescriptor(\Item.timeStamp, order: .reverse)]
+        )
     }
 }

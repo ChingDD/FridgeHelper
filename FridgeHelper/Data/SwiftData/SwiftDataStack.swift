@@ -13,7 +13,7 @@ class SwiftDataStack {
 
      init(inMemory: Bool = false) throws {
          let config = ModelConfiguration(isStoredInMemoryOnly: inMemory, cloudKitDatabase: .none)
-         container = try ModelContainer(for: Item.self, configurations: config)
+         container = try ModelContainer(for: Item.self, Fridge.self, configurations: config)
      }
 
     @MainActor

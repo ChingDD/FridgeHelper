@@ -8,7 +8,10 @@
 import Foundation
 
 /// 冰箱方案。權益跟著冰箱 Owner，成員沿用該冰箱 Owner 的方案
-enum FridgePlan {
+///
+/// raw value 必須明確指定：`Fridge` 會把方案存進 SwiftData，
+/// 靠自動產生的序數會在未來新增 case 時錯位
+enum FridgePlan: String, Codable {
     case free
     case familyLifetime
 

@@ -28,6 +28,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         Task {
             do {
                 await migrateStoreLocationIfNeeded()
+                await migrateFridgesIfNeeded()
                 try await syncCloudToLocal()
                 planAllItemsExpirationNotification()
             } catch {
@@ -214,6 +215,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         for item in items where item.storeLocation.isEmpty {
             item.storeLocation = Item.location(fromLegacy: item.storeCondition)
             try? await repository.update(item: item)
+        }
+    }
+
+    /// 一次性本地遷移：建立 Default 冰箱並把既有食材歸戶。必須在雲端同步前完成
+    @MainActor
+    private func migrateFridgesIfNeeded() async {
+        guard let stack = sharedStack else { return }
+        do {
+            try FridgeMigrator(container: stack.container).migrateIfNeeded()
+        } catch {
+            printInfo("Fridge 遷移失敗: \(error)")
         }
     }
 

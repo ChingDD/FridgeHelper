@@ -31,12 +31,12 @@ class LunchingViewController: UIViewController {
         let cloudRepo = CloudRepository(zoneMgr: ZoneManager())
         let compositeRepo = CompositeRepository(local: localRepo, cloud: cloudRepo)
         sharedTagListViewModel = StringListViewModel(
-            store: UserDefaultsStringListStore(key: "app.swiftdata.tags"),
-            defaults: ["蔬菜", "水果", "肉類", "魚類"]
+            store: UserDefaultsStringListStore(key: FridgeListDefaults.legacyTagsKey),
+            defaults: FridgeListDefaults.tags
         )
         sharedLocationListViewModel = StringListViewModel(
-            store: UserDefaultsStringListStore(key: "app.swiftdata.storeLocations"),
-            defaults: ["室溫", "冷藏", "冷凍"]
+            store: UserDefaultsStringListStore(key: FridgeListDefaults.legacyLocationsKey),
+            defaults: FridgeListDefaults.locations
         )
         sharedMainViewModel = MainViewModel(
             tags: sharedTagListViewModel,

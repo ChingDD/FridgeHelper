@@ -41,6 +41,14 @@ class CompositeRepository: ItemRepositoryProtocol {
         try await local.fetch()
     }
 
+    func fetch(fridgeID: String) async throws -> [Item] {
+        try await local.fetch(fridgeID: fridgeID)
+    }
+
+    func count(fridgeID: String) async throws -> Int {
+        try await local.count(fridgeID: fridgeID)
+    }
+
     func add(item: Item) async throws {
         try await local.add(item: item)
         Task {

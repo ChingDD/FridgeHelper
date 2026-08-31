@@ -52,6 +52,12 @@ class CloudRepository: ItemRepositoryProtocol {
         }
     }
 
+    /// 逐冰箱讀取一律走本機 SwiftData，雲端不提供這條路徑；
+    /// 依 Fridge 路由的雲端讀寫是 2B 的範圍
+    func fetch(fridgeID: String) async throws -> [Item] { [] }
+
+    func count(fridgeID: String) async throws -> Int { 0 }
+
     func add(item: Item) async throws {
         // 新增 item 預設寫入自己的 private zone，不需走 sharedDB
         // toRecord 必須在 await 前呼叫，確保在 caller 的 actor（MainActor）上讀取 @Model 屬性
