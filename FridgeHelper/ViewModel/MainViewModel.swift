@@ -37,13 +37,20 @@ class MainViewModel {
     private let planProvider: FridgePlanProviding
 
     /// 選定的冰箱。ViewModel 不再是全 App 單例，換冰箱時整組重建
+    private let fridge: Fridge
     let selectedFridgeID: String
 
     /// 這座冰箱的 Zone Owner
     private let fridgeZoneOwnerName: String
 
-    /// 這座冰箱 Owner 的方案；共享冰箱沿用 Owner 的方案，不看自己買了什麼
-    private var plan: FridgePlan { planProvider.plan(forZoneOwner: fridgeZoneOwnerName) }
+    /// 這座冰箱 Owner 的方案。
+    /// 自己的冰箱看本機購買權益；共享冰箱只能相信從 Zone 同步下來的 `FridgeMetadata.plan`
+    /// ——成員沒有辦法驗證 Owner 的 StoreKit 購買
+    private var plan: FridgePlan {
+        fridge.isOwnedByCurrentUser
+            ? planProvider.plan(forZoneOwner: fridgeZoneOwnerName)
+            : fridge.plan
+    }
 
     /// 這座冰箱實際可新增的食材上限
     var itemCapacity: Int { plan.itemsPerFridge }
@@ -84,6 +91,7 @@ class MainViewModel {
     }
 
     init(fridge: Fridge, tags: StringListViewModel, locations: StringListViewModel, local: ItemRepositoryProtocol, planProvider: FridgePlanProviding, syncFromCloud: (() async throws -> Void)? = nil) {
+        self.fridge = fridge
         self.selectedFridgeID = fridge.fridgeID
         self.fridgeZoneOwnerName = fridge.ownerName
         self.tags = tags
@@ -208,8 +216,10 @@ class MainViewModel {
     func addItem(_ item: Item) -> ItemCapacityRejection? {
         if let rejection = addItemRejection { return rejection }
 
-        // 所有新增入口都經過這裡，歸戶只在這一處進行
+        // 所有新增入口都經過這裡，歸戶只在這一處進行。
+        // zoneOwnerName 一併寫上，讓在別人冰箱新增的食材從一開始就標好來源
         item.fridgeID = selectedFridgeID
+        item.zoneOwnerName = fridgeZoneOwnerName
         savedItems.insert(item, at: 0)
         Task { @MainActor [weak self] in
             guard let self else { return }

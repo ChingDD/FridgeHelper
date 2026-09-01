@@ -20,7 +20,9 @@ class ZoneManager: ZoneManaging {
         self.containerIdentifier = containerIdentifier
     }
 
-    func ensureZoneExists() async throws {
+    func ensureZoneExists(_ zoneID: CKRecordZone.ID) async throws {
+        // 共享冰箱的 zone 在 Owner 的 privateDB，這裡建不出來，也不該建
+        guard Fridge.isOwnZone(zoneID) else { return }
         let database = CKContainer(identifier: containerIdentifier).privateCloudDatabase
         let zone = CKRecordZone(zoneID: zoneID)
         try await database.save(zone)

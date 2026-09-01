@@ -22,6 +22,7 @@ struct CloudItemChange {
 /// 不同 Owner 的 zone 可能同名（例如爸爸與媽媽的 zone 都叫 ShareZone），
 /// 只用 zoneName 會讓兩座 zone 共用同一個 token 而互相覆蓋。
 enum SyncTokenKey {
+    static let privateDatabase = "syncToken_privateDB"
     static let sharedDatabase = "syncToken_sharedDB"
 
     static func zone(_ zoneID: CKRecordZone.ID, scope: CKDatabase.Scope) -> String {
@@ -42,7 +43,6 @@ enum SyncTokenKey {
 class SyncCoordinator {
 
     private let localRepository: ItemRepositoryProtocol
-    private let zoneMgr: ZoneManaging
     private let ckContainer: CKContainer
     private let modelContainer: ModelContainer
 
@@ -51,12 +51,10 @@ class SyncCoordinator {
 
     init(
         localRepository: ItemRepositoryProtocol,
-        zoneMgr: ZoneManaging,
         modelContainer: ModelContainer,
         containerIdentifier: String = "iCloud.FridgeHelper"
     ) {
         self.localRepository = localRepository
-        self.zoneMgr = zoneMgr
         self.modelContainer = modelContainer
         self.ckContainer = CKContainer(identifier: containerIdentifier)
     }
@@ -70,66 +68,68 @@ class SyncCoordinator {
         return privateChanges + sharedChanges
     }
 
-    // MARK: - Private DB（自己的 ShareZone）
+    // MARK: - Private DB（自己擁有的所有冰箱 zone）
 
     private func fetchPrivateChanges() async throws -> [CloudItemChange] {
-        let tokenKey = SyncTokenKey.zone(zoneMgr.zoneID, scope: .private)
-        let savedToken = loadToken(forKey: tokenKey)
-
-        let (changed, deleted, newToken) = try await fetchZoneChanges(
-            from: privateDatabase,
-            zoneID: zoneMgr.zoneID,
-            token: savedToken
-        )
-
-        try await applyChanges(changed: changed, deleted: deleted)
-
-        if let token = newToken {
-            saveToken(token, forKey: tokenKey)
-        }
-
-        return changed.map(toCloudItemChange)
+        try await fetchChanges(from: privateDatabase,
+                               scope: .private,
+                               databaseTokenKey: SyncTokenKey.privateDatabase)
     }
 
     // MARK: - Shared DB（被邀請進來的 zones）
 
     private func fetchSharedChanges() async throws -> [CloudItemChange] {
-        let dbTokenKey = SyncTokenKey.sharedDatabase
-        let savedDBToken = loadToken(forKey: dbTokenKey)
+        try await fetchChanges(from: sharedDatabase,
+                               scope: .shared,
+                               databaseTokenKey: SyncTokenKey.sharedDatabase)
+    }
+
+    /// 先問 database 有哪些 zone 變動，再逐 zone 抓 record 差異。
+    ///
+    /// private 與 shared 的流程完全相同，差別只在 database 與 token 的 scope。
+    /// private 端不能再只同步固定那一座 zone：多冰箱後自己就有多個 private zone
+    private func fetchChanges(
+        from database: CKDatabase,
+        scope: CKDatabase.Scope,
+        databaseTokenKey: String
+    ) async throws -> [CloudItemChange] {
+
+        let savedDBToken = loadToken(forKey: databaseTokenKey)
         var itemChanges: [CloudItemChange] = []
 
-        // Step 1：找出 sharedDB 中有哪些 zone 發生變動
+        // Step 1：找出有哪些 zone 發生變動
         let (changedZoneIDs, deletedZoneIDs, newDBToken) = try await fetchDatabaseChanges(
-            from: sharedDatabase,
+            from: database,
             token: savedDBToken
         )
 
         // Step 2：對每個變動的 zone 抓 record 差異
         for zoneID in changedZoneIDs {
-            let zoneTokenKey = SyncTokenKey.zone(zoneID, scope: .shared)
+            let zoneTokenKey = SyncTokenKey.zone(zoneID, scope: scope)
             let savedZoneToken = loadToken(forKey: zoneTokenKey)
 
             let (changed, deleted, newZoneToken) = try await fetchZoneChanges(
-                from: sharedDatabase,
+                from: database,
                 zoneID: zoneID,
                 token: savedZoneToken
             )
 
             try await applyChanges(changed: changed, deleted: deleted)
-            itemChanges.append(contentsOf: changed.map(toCloudItemChange))
+            // 只有食材變動需要通知使用者，FridgeMetadata 的變動不必打擾
+            itemChanges.append(contentsOf: changed.filter { $0.recordType == "Item" }.map(toCloudItemChange))
 
             if let token = newZoneToken {
                 saveToken(token, forKey: zoneTokenKey)
             }
         }
 
-        // Step 3：被刪除的 zone（對方撤銷共享）→ 清除 token
+        // Step 3：被刪除的 zone（對方撤銷共享、或自己在別台裝置刪掉冰箱）→ 清除 token
         for zoneID in deletedZoneIDs {
-            UserDefaults.standard.removeObject(forKey: SyncTokenKey.zone(zoneID, scope: .shared))
+            UserDefaults.standard.removeObject(forKey: SyncTokenKey.zone(zoneID, scope: scope))
         }
 
         if let token = newDBToken {
-            saveToken(token, forKey: dbTokenKey)
+            saveToken(token, forKey: databaseTokenKey)
         }
 
         return itemChanges
@@ -195,8 +195,11 @@ class SyncCoordinator {
 
             // 當有資料發生變更（新增或更新）時，雲端會透過此閉包回傳 Record 內容
             operation.recordWasChangedBlock = { _, result in
-                // 只處理 Item record，過濾 CKShare 等其他類型避免產生空白 Item
-                if let record = try? result.get(), record.recordType == "Item" { changedRecords.append(record) }
+                // 只處理自己認得的型別，過濾 CKShare 等其他類型避免產生空白資料
+                guard let record = try? result.get() else { return }
+                if record.recordType == "Item" || record.recordType == FridgeMetadataRecordMapper.recordType {
+                    changedRecords.append(record)
+                }
             }
 
             // 當有資料被刪除時，雲端會透過此閉包回傳該 Record 的 ID
@@ -234,7 +237,14 @@ class SyncCoordinator {
         // 每筆寫入前重新查詢本地，不跨 await 沿用同一份清單快照，
         // 避免套用期間本地已增刪時操作到過時的物件參考
         for record in changed {
-            try ensureFridgeExists(for: record.recordID.zoneID)
+            // 冰箱本身必須先落地：食材要掛在冰箱上，
+            // 而 FridgeMetadata 是空冰箱在雲端唯一會出現的 record
+            let fridge = try await ensureFridge(for: record.recordID.zoneID)
+            guard record.recordType == "Item" else {
+                applyFridgeMetadata(record, to: fridge)
+                continue
+            }
+
             let incoming = ItemRecordMapper.item(from: record)
             let existingItems = try await localRepository.fetch()
             if let existing = existingItems.first(where: { $0.timeStamp == incoming.timeStamp }) {
@@ -267,25 +277,52 @@ class SyncCoordinator {
 
     /// record 所在 zone 對應的 Fridge，不存在就建立。
     /// 這條路徑涵蓋新裝置與重新安裝：本機 Fridge 沒有同步，靠 record 的 zoneID 反推重建。
-    /// 新建的冰箱使用系統預設清單；共享冰箱名稱先用 fallback，
-    /// 依 `CKShare.owner` 命名要等取得該 zone 的 CKShare
-    private func ensureFridgeExists(for zoneID: CKRecordZone.ID) throws {
+    /// 新建的冰箱使用系統預設清單
+    private func ensureFridge(for zoneID: CKRecordZone.ID) async throws -> Fridge {
         let fridgeID = Fridge.makeID(zoneName: zoneID.zoneName, ownerName: zoneID.ownerName)
         var descriptor = FetchDescriptor<Fridge>(predicate: #Predicate { $0.fridgeID == fridgeID })
         descriptor.fetchLimit = 1
 
         let context = modelContainer.mainContext
-        guard try context.fetch(descriptor).isEmpty else { return }
+        if let existing = try context.fetch(descriptor).first { return existing }
 
-        let isOwnZone = Fridge.normalizedOwnerName(zoneID.ownerName) == CKCurrentUserDefaultName
-        context.insert(Fridge(
+        let name: String
+        if Fridge.isOwnZone(zoneID) {
+            name = FridgeDefaultName.own
+        } else {
+            name = FridgeDefaultName.shared(from: await sharedZoneOwnerName(of: zoneID))
+        }
+
+        let fridge = Fridge(
             zoneName: zoneID.zoneName,
             ownerName: zoneID.ownerName,
-            name: isOwnZone ? "我的冰箱" : "共享的冰箱",
+            name: name,
             tags: FridgeListDefaults.tags,
             locations: FridgeListDefaults.locations
-        ))
+        )
+        context.insert(fridge)
         try context.save()
+        return fridge
+    }
+
+    /// 共享冰箱的分享者名稱，用來當初始冰箱名稱。取不到就讓名稱退回泛用值，不影響同步
+    private func sharedZoneOwnerName(of zoneID: CKRecordZone.ID) async -> String? {
+        let share = try? await ShareManager.fetchZoneWideShare(zoneID: zoneID, in: sharedDatabase)
+        return share?.owner.identityName
+    }
+
+    /// 把 Zone 裡的冰箱資料套用到本機 Fridge。
+    ///
+    /// 方案只套用在別人的冰箱：自己的冰箱以本機購買權益為準，
+    /// 讓雲端上尚未更新的舊值蓋回來會把自己降級。
+    /// `updatedAt` 也不套用，本機那個欄位記的是本機資料（例如標籤清單）最後變動時間
+    private func applyFridgeMetadata(_ record: CKRecord, to fridge: Fridge) {
+        let snapshot = FridgeMetadataRecordMapper.snapshot(from: record)
+        if !fridge.isOwnedByCurrentUser {
+            fridge.plan = snapshot.plan
+        }
+        fridge.createdAt = snapshot.createdAt
+        try? modelContainer.mainContext.save()
     }
 
     // MARK: - Token Persistence

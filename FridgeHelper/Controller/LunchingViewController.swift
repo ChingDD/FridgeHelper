@@ -14,6 +14,7 @@ class LunchingViewController: UIViewController {
     var launchScreen: UIViewController?
 
     // Shared ViewModel instances — created once here and injected down the stack
+    private var selectedFridge: Fridge!
     private var sharedTagListViewModel: StringListViewModel!
     private var sharedLocationListViewModel: StringListViewModel!
     private var sharedMainViewModel: MainViewModel!
@@ -29,7 +30,8 @@ class LunchingViewController: UIViewController {
             fatalError("SharedStack 尚未初始化")
         }
         let context = stack.container.mainContext
-        let fridge = selectedFridge(in: context)
+        let fridge = loadSelectedFridge(in: context)
+        selectedFridge = fridge
         let localRepo = SwiftDataItemRepository(container: stack.container)
         let cloudRepo = CloudRepository(zoneMgr: ZoneManager())
         let compositeRepo = CompositeRepository(local: localRepo, cloud: cloudRepo)
@@ -56,7 +58,7 @@ class LunchingViewController: UIViewController {
     }
 
     /// 上次選取的冰箱；找不到就退回 Default 冰箱。階段三接上冰箱選擇首頁後改由該頁決定
-    private func selectedFridge(in context: ModelContext) -> Fridge {
+    private func loadSelectedFridge(in context: ModelContext) -> Fridge {
         let fridges = (try? context.fetch(FetchDescriptor<Fridge>())) ?? []
         let defaultID = Fridge.makeID(zoneName: ZoneManager.defaultZoneName, ownerName: nil)
         let targetID = SelectedFridgeStore.fridgeID ?? defaultID
@@ -74,8 +76,11 @@ class LunchingViewController: UIViewController {
         let fridgeVC = FridgeViewController()
         fridgeVC.viewModel = sharedMainViewModel
 
+        // 共享是逐冰箱的，ShareManager 綁在目前選定的那座冰箱上
         let participantsVC = ParticipantsViewController()
-        participantsVC.viewModel = ParticipantsViewModel(shareManager: ShareManager(zoneMgr: ZoneManager()))
+        participantsVC.viewModel = ParticipantsViewModel(
+            shareManager: ShareManager(fridge: selectedFridge, zoneMgr: ZoneManager())
+        )
 
         let tabBarController = MainTabBarController()
         tabBarController.setViewControllers([

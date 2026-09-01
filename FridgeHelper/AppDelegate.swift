@@ -8,6 +8,7 @@
 import UIKit
 import UserNotifications
 import BackgroundTasks
+import SwiftData
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -32,6 +33,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             do {
                 await migrateStoreLocationIfNeeded()
                 try await syncCloudToLocal()
+                await pushOwnedFridgeMetadata()
                 planAllItemsExpirationNotification()
             } catch {
                 printInfo("Sync Cloud To Local Fail: \(error)")
@@ -59,8 +61,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Subscribe Cloud Database
         let zoneMgr = ZoneManager()
         let cloudDB = CloudRepository(zoneMgr: zoneMgr)
-        let subscriptionMgr = SubscriptionManager(zoneID: zoneMgr.zoneID,
-                                                  privateDB: cloudDB.privateDatabase,
+        let subscriptionMgr = SubscriptionManager(privateDB: cloudDB.privateDatabase,
                                                   sharedDB: cloudDB.sharedDatabase)
         Task {
             do {
@@ -231,6 +232,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
     }
 
+    /// 把自己擁有的冰箱寫進它的 Zone。
+    /// 空冰箱在雲端本來一筆 record 都沒有，成員同步時看不到這座冰箱存在；
+    /// 成員也只能靠 FridgeMetadata.plan 得知 Owner 的方案。
+    /// 內容沒變就不會真的寫入，不會每次啟動都推播給其他裝置
+    @MainActor
+    private func pushOwnedFridgeMetadata() async {
+        guard let stack = sharedStack else { return }
+        let fridges = (try? stack.container.mainContext.fetch(FetchDescriptor<Fridge>())) ?? []
+        let repository = FridgeMetadataRepository(zoneMgr: ZoneManager())
+        for fridge in fridges where fridge.isOwnedByCurrentUser {
+            do {
+                try await repository.upsert(for: fridge)
+            } catch {
+                printInfo("FridgeMetadata 上傳失敗: \(error)")
+            }
+        }
+    }
+
     private var syncTask: Task<Void, Error>?
 
     /// 序列化雲端同步：同一時間只有一條 sync 在跑，後到的排在前一條之後，
@@ -248,7 +267,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     private func performSync(shouldNotifyChanges: Bool) async throws {
         guard let stack = sharedStack else { return }
         let syncMgr = SyncCoordinator(localRepository: SwiftDataItemRepository(container: stack.container),
-                                      zoneMgr: ZoneManager(),
                                       modelContainer: stack.container)
 
         let changes = try await syncMgr.fetchChanges()

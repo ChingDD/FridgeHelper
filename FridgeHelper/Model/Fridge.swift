@@ -57,6 +57,24 @@ class Fridge {
         "\(normalizedOwnerName(ownerName))|\(zoneName)"
     }
 
+    /// 從字串化的 fridgeID 還原 zoneID。
+    /// 有了這條反向路徑，雲端寫入不需要先查 Fridge，拿 Item 的 fridgeID 就能決定要寫哪個 zone
+    static func zoneID(from fridgeID: String) -> CKRecordZone.ID? {
+        let parts = fridgeID.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false)
+        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
+        return CKRecordZone.ID(zoneName: String(parts[1]), ownerName: String(parts[0]))
+    }
+
+    /// zone 是否屬於自己。自己的 zone 才能建立，也才走 privateDB
+    static func isOwnZone(_ zoneID: CKRecordZone.ID) -> Bool {
+        normalizedOwnerName(zoneID.ownerName) == CKCurrentUserDefaultName
+    }
+
+    /// 這座冰箱對應的 CloudKit Zone
+    var zoneID: CKRecordZone.ID {
+        CKRecordZone.ID(zoneName: zoneName, ownerName: ownerName)
+    }
+
     /// 是否為自己擁有的冰箱；別人分享進來的冰箱不佔自己的額度
     var isOwnedByCurrentUser: Bool {
         ownerName == CKCurrentUserDefaultName
@@ -70,6 +88,19 @@ enum SelectedFridgeStore {
     static var fridgeID: String? {
         get { UserDefaults.standard.string(forKey: key) }
         set { UserDefaults.standard.set(newValue, forKey: key) }
+    }
+}
+
+/// 冰箱的預設顯示名稱。名稱純本機、不同步，各裝置可以各自改名
+enum FridgeDefaultName {
+    static let own = "我的冰箱"
+    /// 取不到分享者身分時的共享冰箱名稱
+    static let sharedFallback = "共享的冰箱"
+
+    /// 共享冰箱以分享者命名
+    static func shared(from ownerName: String?) -> String {
+        guard let ownerName, !ownerName.isEmpty else { return sharedFallback }
+        return "\(ownerName) 的冰箱"
     }
 }
 

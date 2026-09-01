@@ -58,87 +58,79 @@
 - 已確保更新與刪除不受容量限制。
 - 未套用容量限制於 CloudKit 同步，sharedDB 與自己的 zone 都維持完整同步。
 
+### 多冰箱資料基礎 - 階段二（2A／2B／2C）
+
+**2A：本機資料基礎**
+
+- 已新增 `Fridge` @Model，`fridgeID` 為字串化 zoneID（格式 `"<ownerName>|<zoneName>"`）。
+- 已在 `Item` 新增 `fridgeID`；只存本機、不寫進 CKRecord，雲端的真相是 record 所在的 zoneID。
+- 已將標籤與儲存位置從 UserDefaults 搬進 `Fridge`，`StringListViewModel` 的 store 抽成 protocol。
+- 已完成一次性遷移：建立 Default 冰箱、共享冰箱依 `zoneOwnerName` 分組、既有食材歸戶、清單複製。
+- 已讓 `MainViewModel` 與兩個 `StringListViewModel` 綁定選定冰箱，不再是全 App 單例。
+
+**2B：雲端路由與多 private zones**
+
+- 已讓 `ZoneManaging` 支援任意 zone（`ensureZoneExists(_ zoneID:)`），非自己的 zone 自動略過。
+- 已讓 `CloudRepository` 依 `item.fridgeID` 還原 zoneID 來路由；在別人的冰箱新增食材會寫入 sharedDB。
+- 已將 `SyncCoordinator` 的 private 與 shared 合併成同一條流程：先問 database 哪些 zone 變動，再逐 zone 抓差異。private 端不再只同步固定那一座 zone。
+- 已引入 `FridgeMetadata` CKRecord（`fridgeID`／`plan`／`createdAt`／`updatedAt`），每個 zone 固定一筆。
+- 已讓 `SubscriptionManager` 的 privateDB 訂閱從 `CKRecordZoneSubscription` 改為 `CKDatabaseSubscription`，新增的 zone 才收得到 silent push；舊的 zone 訂閱會 best-effort 刪除。
+- 已讓共享冰箱的方案改讀 `Fridge.plan`（即同步下來的 `FridgeMetadata.plan`），自己的冰箱維持看本機購買權益。
+
+**2C：sharedDB 多 Zone**
+
+- 已將 `ShareManager` 改為綁定單一 zone，每座冰箱各自建立 CKShare。
+- 已修掉 `fetchParticipatingShare()` 只取 `zones.first` 的限制，改為直接查該座冰箱的 zone-wide share。
+- 已將共享冰箱初始名稱改用 `CKShare.owner` 命名為「XXX 的冰箱」，取不到身分才退回「共享的冰箱」。
+- 已將姓名解析抽成 `CKShare.Participant.identityName／displayName`，與 `ParticipantsViewModel` 共用同一份邏輯。
+
+**`FridgeMetadata` 的定案**
+
+- 不加 `schemaVersion`。目前 App 尚無其他使用者，不急著做版本協商。
+- 寫入採「先讀再改」：不會抹掉新版寫入、本版還不認識的欄位，因此不需要靠版本協商保護。
+- 內容沒變就不寫，避免每次啟動都讓其他裝置收到無意義的 silent push。
+- 只有 Owner 會寫。成員的方案來源是自己的購買權益，讓成員寫回去會把 Owner 的家庭版蓋成免費方案。
+- 讀取端不信任 record 裡的 `fridgeID` 欄位（那是 Owner 視角的值），一律以 `record.recordID.zoneID` 為準。
+
+**上線前的必要步驟**
+
+- `FridgeMetadata` 在 Development 環境由第一次寫入自動建立，要上 Production 必須到 CloudKit Console 執行 Deploy Schema Changes。只用 `record(for:)` 與 zone changes，不需要建 index。
+
+### [Bug] shared zone change token key 碰撞
+
+- 已於 commit `9ae1be8` 修正，token key 改為包含 database scope、`ownerName` 與 `zoneName`。
+- 舊 key 因格式不同不會再被讀取，對應 zone 的 token 視為不存在而自動做一次完整同步，不需要額外的遷移程式。
+
 ## 未完成
 
 ### 食材數量上限控管（[定案版商業規格＋技術設計](FridgeBusinessAndTechnicalDesign.md)）
 
-- 階段二：建立多冰箱資料基礎；拆成 2A／2B／2C 三段，詳見下方。
 - 階段三：完成多冰箱 UI 與共享；新增冰箱選擇首頁、建立／重新命名／刪除冰箱、逐冰箱成員管理及 sharedDB 寫入。
 - 階段四：完成 StoreKit 家庭版永久內購；可擁有三座冰箱、每座 500 項、每座最多邀請 4 位成員，並支援購買、Restore、退款及撤銷權益。
 - 階段五：完成多設備競態、新設備恢復、多 shared zones、共享撤銷、離線與 StoreKit Sandbox 測試。
 
 階段一已預留的接點：
 
-- 階段二綁定選定冰箱時，改注入 `MainViewModel.fridgeZoneOwnerName`，即可讓共享冰箱套用 Owner 的方案。
 - 階段四完成 StoreKit 後，只需在 `LunchingViewController` 改注入依購買權益判斷的 `FridgePlanProviding` 實作。
 
-#### 階段二拆解
+階段二留給階段三的接點：
 
-- 2A：純本機資料基礎。Fridge Model、`Item.fridgeID`、逐冰箱標籤／儲存位置、既有資料遷移。不動 UI、不動 CloudKit 寫入路徑。
-- 2B：`ZoneManager` 支援任意 Zone、`CloudRepository` 依 Fridge 路由（含在別人的冰箱新增食材時寫入 sharedDB）、`SyncCoordinator` 列舉所有 private zones、引入 `FridgeMetadata`。
-- 2C：sharedDB 多 Zone 支援。修掉 `ShareManager.fetchParticipatingShare()` 只取 `zones.first` 的限制，每座冰箱各自建立 CKShare。
+- `LunchingViewController.loadSelectedFridge()` 目前固定退回 Default 冰箱，接上冰箱選擇首頁後改由該頁決定，其餘組裝流程不必調整。
+- 新增冰箱時 zone 名稱用 `Fridge_<UUID>`，Default 冰箱沿用 `ShareZone` 不遷移。
+- 建立冰箱後需呼叫 `FridgeMetadataRepository.upsert(for:)`，否則空冰箱在其他裝置上不會出現。
 
-#### 階段 2A 定案內容
+#### 階段二的已知限制
 
-**ZoneID 的組成**
+- 成員頁在 participant 裝置上會顯示「尚未共享冰箱」。共享已是逐冰箱的，但選定冰箱在冰箱選擇首頁做出來之前一律是自己的 Default 冰箱。與 2A 之後的食材列表行為一致，階段三接上選擇首頁即恢復。
+- 標籤與儲存位置清單仍是本機各自的，同一座共享冰箱不同成員看到的清單不一致。要一致需將清單同步進 `FridgeMetadata`。
+- 遷移的精度限制：舊有 shared Item 只存了 `zoneOwnerName`、沒有 zoneName，遷移時只能假設 `zoneName = "ShareZone"`。舊版本來就只支援單一 Zone，因此安全。
 
-`CKRecordZone.ID` 只有 `zoneName` + `ownerName`，由 App 自行命名，唯一性也由 App 負責。
+### 共享 zone 被撤銷時本機資料未清除
 
-- privateDB：所有 Zone 的 `ownerName` 都是 `__defaultOwner__`，只靠 `zoneName` 區分。Default 冰箱沿用 `ShareZone`，新增的用 `Fridge_<UUID>`。
-- sharedDB：不同 Owner 的 Zone 可以同名，必須 `zoneName + ownerName` 才唯一。
-
-**Fridge Model 欄位**
-
-| 欄位 | 說明 |
-|---|---|
-| `id` | 字串化的 zoneID，格式 `"<ownerName>\|<zoneName>"` |
-| `name` | 冰箱顯示名稱；純本機，不同步 |
-| `zoneName` | CloudKit Zone 名稱 |
-| `ownerName` | CloudKit Zone Owner |
-| `plan` | `free`／`familyLifetime` |
-| `createdAt` | 建立時間 |
-| `updatedAt` | 更新時間 |
-| `tags` | 這座冰箱的標籤清單 |
-| `locations` | 這座冰箱的儲存位置清單 |
-
-- `id` 用字串化 zoneID，`SyncCoordinator` 可從 `record.recordID.zoneID` 直接算出 `fridgeID`，不必查表，也不會有「record 先到、Fridge 還沒建」的順序問題。
-- `ownerName` 必須正規化：判定為自己的 Zone 時一律寫入 `CKCurrentUserDefaultName`。同一座冰箱在 Owner 裝置上看到 `__defaultOwner__`、在 participant 裝置上看到真實 user record name，不正規化會在本機產生兩筆 Fridge。
-- 本機 Fridge 不放 `schemaVersion`。本機資料格式版本由 SwiftData migration 管，雲端版本協商見下方獨立 ticket。
-- `FridgePlan` 需加上 `String, Codable` raw value 才能穩定持久化到 SwiftData。
-
-**冰箱名稱**
-
-- 名稱一律存在本機，不同步給其他成員，因此 `FridgeMetadata` 不需要 `displayName`。
-- 共享冰箱初始名稱為 `<分享者>'s 冰箱`，取名來源是 `CKShare.owner.userIdentity`，邏輯與 `ParticipantsViewModel.mapMembers` 相同（nameComponents → email → phone），fallback 為「共享的冰箱」。
-- 使用者可自行改名，僅影響本機。
-
-**標籤與儲存位置逐冰箱**
-
-- 從 UserDefaults 搬進 SwiftData，直接掛在 `Fridge` 上。資料跟著冰箱生命週期走，刪除冰箱或共享被撤銷時一併清除。
-- `StringListViewModel` 的 store 抽成 protocol，新增讀寫 `Fridge` 欄位的實作；`ManageListViewController` 不需修改。
-- 遷移時把現有 `app.swiftdata.tags` 與 `app.swiftdata.storeLocations` 複製給所有既有 Fridge，新建或新加入的冰箱使用系統預設值。
-- 已知限制：2A 的清單是本機各自的，同一座共享冰箱不同成員看到的清單不一致。要一致需等 2B 的 `FridgeMetadata`。
-
-**其他決定**
-
-- `fridgeID` 只存在本機，不寫進 CKRecord。雲端的真相是 zoneID，同步時反推。
-- 共享冰箱的食材在本機 SwiftData 一樣有一份（local-first 快取），只有雲端寫入路徑走 sharedDB。
-- `MainViewModel` 與兩個 `StringListViewModel` 必須在選定冰箱時才建立，不能再是全 App 單例。`LunchingViewController` 改成 `makeMainViewModel(for: Fridge)` 形式，2A 先固定注入 Default 冰箱，階段三接上選擇首頁時直接沿用。
-- 遷移的已知精度限制：舊有 shared Item 只存了 `zoneOwnerName`、沒有 zoneName，遷移時只能假設 `zoneName = "ShareZone"`。舊版本來就只支援單一 Zone，因此安全。
-
-**實作項目**
-
-1. `FridgePlan` 加 `String, Codable` raw value。
-2. 新增 `Fridge` @Model。
-3. `Item` 新增 `fridgeID`；`SwiftDataStack` 註冊 `Fridge.self`。
-4. 一次性遷移：建立 Default Fridge、共享 Fridge 依 `zoneOwnerName` 分組、Item 歸戶、清單從 UserDefaults 複製。
-5. `ItemRepositoryProtocol` 新增 `fetch(fridgeID:)` 與 `count(fridgeID:)`。
-6. `StringListViewModel` 的 store 改為 protocol 加 Fridge-backed 實作。
-7. `MainViewModel` 綁定 `selectedFridgeID`，`savedItemCount` 改用 `count(fridgeID:)`，上次選取的冰箱記在 UserDefaults。
-8. `LunchingViewController` 改成 per-fridge 組裝。
-9. `SyncCoordinator` 依 record 的完整 zoneID 歸戶，Fridge 不存在就自動建立。
-
-拆成兩個 commit：1–5 為資料模型與遷移，6–9 為 per-fridge 組裝。
+- 現況：`SyncCoordinator` 在 `deletedZoneIDs` 只清除 change token。
+- 影響：對方撤銷共享、或自己在別台裝置刪掉冰箱後，本機的 `Fridge` 與其所有 `Item` 會一直留著，成為讀不到雲端的孤兒資料。
+- 修正：一併刪除本機 `Fridge`、該 `fridgeID` 的所有 Item 及 token；`SwiftDataItemRepository` 需新增 `deleteAll(fridgeID:)`。
+- 相依：刪掉的若是目前選定的冰箱，需要退回其他冰箱，因此建議與階段三的冰箱選擇首頁一起做。
 
 ### [Risk] CKRecord 未知欄位會被舊版以 `.allKeys` 抹除
 
@@ -147,13 +139,15 @@
 - 影響：新版寫入的欄位在其他裝置上消失。
 - 解法方向一：改寫入策略，或在 mapper 保留 CKRecord 上的未知欄位並於寫回時帶上。這才是根本解，且不需要版本協商。
 - 解法方向二：在 `FridgeMetadata` 加 `schemaVersion`，舊版偵測到版本高於自己時將該冰箱轉唯讀或提示更新。
-- 時間點：`schemaVersion` 只能保護「加入檢查之後發出的版本」，補得越晚能保護的裝置越少。目前 App 尚無其他使用者，因此不急著做版本協商，優先考慮解法一，於 2B 引入 `FridgeMetadata` 時一併定案。
+- 2B 定案：不做版本協商，`FridgeMetadata` 不加 `schemaVersion`。目前 App 尚無其他使用者，且 `schemaVersion` 只能保護「加入檢查之後發出的版本」。
+- 2B 已處理的部分：`FridgeMetadata` 的寫入採「先讀再改」，未知欄位由結構本身保住，不受此問題影響。
+- 仍未處理：`Item` 的 `.allKeys` 寫入。要根本解需改寫入策略，或讓 `ItemRecordMapper` 保留 CKRecord 上的未知欄位並於寫回時帶上。
 
 ### CKShare title 對受邀者沒有資訊
 
-- 現況：`ShareManager.fetchOrCreateShare()` 將 CKShare title 寫死為「我的冰箱」。
+- 現況：`ShareManager.fetchOrCreateShare()` 將 CKShare title 寫死為「我的冰箱」，`ParticipantsViewController.itemTitle(for:)` 也是。
 - 說明：CKShare title 顯示在系統的邀請 UI（iMessage 邀請卡片、iOS 設定的共享項目），受邀者在接受邀請之前只看得到它，與 App 內的本機冰箱名稱是兩回事。
-- 修正：改成帶入 Owner 端該冰箱的名稱。
+- 修正：改成帶入 Owner 端該冰箱的名稱。2C 之後 `ShareManager` 已綁定單一 `Fridge`，只需在建構時一併保存 `fridge.name` 並改寫這兩處。
 
 ### 通知可設定化
 - 需提供通知開關。
@@ -183,14 +177,6 @@
 ### iCloud 家庭分享 - 移除特定成員
 - 目前家庭分享其他能力已完成。
 - 尚缺「移除特定成員」功能。
-
-### [Bug] shared zone change token key 碰撞
-
-- 現況：shared zone token key 只包含 `zoneName`；不同 Owner 都使用 `ShareZone` 時會共用 `syncToken_sharedZone_ShareZone`。
-- 情境：同一位使用者加入「爸爸／ShareZone」與「媽媽／ShareZone」後，兩座 Zone 會互相讀取、覆蓋或刪除對方的 token。
-- 影響：可能造成 change token 錯誤、同步失敗、反覆完整同步或漏套用變更。
-- 修正：token key 改為包含 database scope、`ownerName` 與 `zoneName`，並集中管理 token key 的建立方式。
-- 遷移：清除無法判斷 Owner 的舊 shared zone token、重建 sharedDB 同步進度，並對現有所有 shared zones 執行一次完整同步。
 
 ## Enhance
 

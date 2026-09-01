@@ -69,15 +69,8 @@ class ParticipantsViewModel {
 
     private static func mapMembers(of share: CKShare) -> [Member] {
         share.participants.map { participant in
-            let formattedName = participant.userIdentity.nameComponents
-                .map { PersonNameComponentsFormatter().string(from: $0) }
-                .flatMap { $0.isEmpty ? nil : $0 }
-            let name = formattedName
-                ?? participant.userIdentity.lookupInfo?.emailAddress
-                ?? participant.userIdentity.lookupInfo?.phoneNumber
-                ?? "成員"
-            return Member(
-                name: name,
+            Member(
+                name: participant.displayName,
                 isOwner: participant.role == .owner,
                 isMe: participant == share.currentUserParticipant,
                 isPending: participant.acceptanceStatus != .accepted

@@ -5,7 +5,7 @@
 //  Created by Aco on 2026/4/11.
 //
 //  職責：向 CloudKit 註冊 silent push 訂閱
-//  - subscribeToPrivateZone：訂閱 privateDB 的 ShareZone，讓 Owner 跨裝置即時同步
+//  - subscribeToPrivateDatabase：訂閱 privateDB，讓 Owner 跨裝置即時同步
 //  - subscribeToSharedDatabase：訂閱 sharedDB，讓 Participant 收到 Owner 的更新
 //  - 收到 silent push 後由 AppDelegate 觸發 SyncCoordinator.fetchChanges()
 
@@ -20,24 +20,32 @@ protocol Subscribable {
 class SubscriptionManager: Subscribable {
     let sharedDB: CKDatabase
     let privateDB: CKDatabase
-    private let zoneSubscription: CKRecordZoneSubscription
-    private let dbSubscription: CKDatabaseSubscription
+    private let privateDBSubscription: CKDatabaseSubscription
+    private let sharedDBSubscription: CKDatabaseSubscription
 
-    init(zoneID: CKRecordZone.ID, privateDB: CKDatabase, sharedDB: CKDatabase) {
+    /// 多冰箱之前 privateDB 只訂閱固定那一座 zone，之後新增的 zone 收不到 silent push
+    private static let legacyZoneSubscriptionID = CKSubscription.ID("zoneSubscription")
+
+    init(privateDB: CKDatabase, sharedDB: CKDatabase) {
         self.sharedDB = sharedDB
         self.privateDB = privateDB
-        self.zoneSubscription = CKRecordZoneSubscription(zoneID: zoneID, subscriptionID: CKSubscription.ID("zoneSubscription"))
-        self.dbSubscription = CKDatabaseSubscription(subscriptionID: CKSubscription.ID("dbSubscription"))
+        self.privateDBSubscription = CKDatabaseSubscription(subscriptionID: CKSubscription.ID("privateDBSubscription"))
+        self.sharedDBSubscription = CKDatabaseSubscription(subscriptionID: CKSubscription.ID("dbSubscription"))
     }
 
-    private func subscribeToPrivateZone() async throws {
-        zoneSubscription.notificationInfo = makeSilentNotificationInfo()
-        try await privateDB.save(zoneSubscription)
+    private func subscribeToPrivateDatabase() async throws {
+        privateDBSubscription.notificationInfo = makeSilentNotificationInfo()
+        try await privateDB.save(privateDBSubscription)
     }
 
     private func subscribeToSharedDatabase() async throws {
-        dbSubscription.notificationInfo = makeSilentNotificationInfo()
-        try await sharedDB.save(dbSubscription)
+        sharedDBSubscription.notificationInfo = makeSilentNotificationInfo()
+        try await sharedDB.save(sharedDBSubscription)
+    }
+
+    /// 舊的 zone 訂閱留著只會讓同一次變更多推一次，同步結果不變但白花電量
+    private func removeLegacyZoneSubscription() async {
+        _ = try? await privateDB.deleteSubscription(withID: Self.legacyZoneSubscriptionID)
     }
 
     private func makeSilentNotificationInfo() -> CKSubscription.NotificationInfo {
@@ -47,11 +55,12 @@ class SubscriptionManager: Subscribable {
     }
 
     func subscribe() async throws {
-        try await subscribeToPrivateZone()
+        try await subscribeToPrivateDatabase()
         try await subscribeToSharedDatabase()
+        await removeLegacyZoneSubscription()
     }
 
     func unsubscribeFromShared() async throws {
-        try await sharedDB.deleteSubscription(withID: dbSubscription.subscriptionID)
+        try await sharedDB.deleteSubscription(withID: sharedDBSubscription.subscriptionID)
     }
 }

@@ -50,7 +50,7 @@ struct FridgeMigrator {
         }
 
         // 即使一筆食材都沒有也要建立 Default 冰箱，後續組裝需要有冰箱可綁定
-        let defaultFridgeID = fridgeID(ownerName: nil, name: "我的冰箱")
+        let defaultFridgeID = fridgeID(ownerName: nil, name: FridgeDefaultName.own)
 
         let unassigned = try context.fetch(
             FetchDescriptor<Item>(predicate: #Predicate { $0.fridgeID == "" })
@@ -59,7 +59,7 @@ struct FridgeMigrator {
             let owner = Fridge.normalizedOwnerName(item.zoneOwnerName)
             item.fridgeID = owner == CKCurrentUserDefaultName
                 ? defaultFridgeID
-                : fridgeID(ownerName: owner, name: "共享的冰箱")
+                : fridgeID(ownerName: owner, name: FridgeDefaultName.sharedFallback)
         }
 
         if context.hasChanges {

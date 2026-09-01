@@ -18,16 +18,16 @@ class CloudRepository: ItemRepositoryProtocol {
     var privateDatabase: CKDatabase { ckContainer.privateCloudDatabase }
     var sharedDatabase: CKDatabase { ckContainer.sharedCloudDatabase }
 
-    /// item 的 zoneOwnerName 非當前使用者 → 來自共享 zone → 走 sharedDB
-    private func database(for item: Item) -> CKDatabase {
-        guard let owner = item.zoneOwnerName, owner != CKCurrentUserDefaultName else {
-            return privateDatabase
-        }
-        return sharedDatabase
+    /// item 所屬冰箱決定要寫到哪個 database 的哪個 zone。
+    /// fridgeID 本身就是字串化的 zoneID，直接還原即可，不需要查 Fridge
+    private func route(for item: Item) -> (database: CKDatabase, zoneID: CKRecordZone.ID, isOwnZone: Bool) {
+        let zoneID = Fridge.zoneID(from: item.fridgeID) ?? legacyZoneID(for: item)
+        let isOwnZone = Fridge.isOwnZone(zoneID)
+        return (isOwnZone ? privateDatabase : sharedDatabase, zoneID, isOwnZone)
     }
 
-    /// 根據 item 的 zoneOwnerName 建立正確的 zone ID
-    private func zoneID(for item: Item) -> CKRecordZone.ID {
+    /// fridgeID 尚未歸戶時的退路：沿用單一冰箱時代只看 zoneOwnerName 的判斷
+    private func legacyZoneID(for item: Item) -> CKRecordZone.ID {
         guard let owner = item.zoneOwnerName, owner != CKCurrentUserDefaultName else {
             return zoneMgr.zoneID
         }
@@ -52,41 +52,44 @@ class CloudRepository: ItemRepositoryProtocol {
         }
     }
 
-    /// 逐冰箱讀取一律走本機 SwiftData，雲端不提供這條路徑；
-    /// 依 Fridge 路由的雲端讀寫是 2B 的範圍
+    /// 逐冰箱讀取一律走本機 SwiftData，雲端不提供這條路徑
     func fetch(fridgeID: String) async throws -> [Item] { [] }
 
     func count(fridgeID: String) async throws -> Int { 0 }
 
     func add(item: Item) async throws {
-        // 新增 item 預設寫入自己的 private zone，不需走 sharedDB
+        let destination = route(for: item)
         // toRecord 必須在 await 前呼叫，確保在 caller 的 actor（MainActor）上讀取 @Model 屬性
-        let (record, tempURL) = toRecord(item)
+        let (record, tempURL) = toRecord(item, in: destination.zoneID)
         defer { tempURL.map { try? FileManager.default.removeItem(at: $0) } }
-        try await zoneMgr.ensureZoneExists()
-        try await privateDatabase.save(record)
+        // 在別人的冰箱新增食材時，zone 早就由 Owner 建好，直接寫 sharedDB
+        if destination.isOwnZone {
+            try await zoneMgr.ensureZoneExists(destination.zoneID)
+        }
+        try await destination.database.save(record)
     }
 
     func update(item: Item) async throws {
-        let (record, tempURL) = toRecord(item)
+        let destination = route(for: item)
+        let (record, tempURL) = toRecord(item, in: destination.zoneID)
         defer { tempURL.map { try? FileManager.default.removeItem(at: $0) } }
-        try await database(for: item).modifyRecords(saving: [record], deleting: [], savePolicy: .allKeys)
+        try await destination.database.modifyRecords(saving: [record], deleting: [], savePolicy: .allKeys)
     }
 
     func delete(item: Item) async throws {
-        let id = recordID(for: item)
-        try await database(for: item).deleteRecord(withID: id)
+        let destination = route(for: item)
+        try await destination.database.deleteRecord(withID: recordID(for: item, in: destination.zoneID))
     }
 
     // MARK: - Mapping
 
-    private func recordID(for item: Item) -> CKRecord.ID {
+    private func recordID(for item: Item, in zoneID: CKRecordZone.ID) -> CKRecord.ID {
         let name = item.timeStamp ?? UUID().uuidString
-        return CKRecord.ID(recordName: name, zoneID: zoneID(for: item))
+        return CKRecord.ID(recordName: name, zoneID: zoneID)
     }
 
-    private func toRecord(_ item: Item) -> (CKRecord, URL?) {
-        let record = CKRecord(recordType: "Item", recordID: recordID(for: item))
+    private func toRecord(_ item: Item, in zoneID: CKRecordZone.ID) -> (CKRecord, URL?) {
+        let record = CKRecord(recordType: "Item", recordID: recordID(for: item, in: zoneID))
         let tempURL = ItemRecordMapper.populate(record, from: item)
         return (record, tempURL)
     }
