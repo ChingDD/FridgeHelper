@@ -90,6 +90,13 @@ class LunchingViewController: UIViewController {
         ], animated: false)
         return tabBarController
     }
+    
+    // MARK: Test
+    private func makeFridgeSelectionVC() -> UIViewController {
+        let vc = FridgeSelectionViewController()
+        vc.viewModel = FridgeViewModel()
+        return vc
+    }
 
     // MARK: - Launch Animation
 
@@ -116,7 +123,8 @@ class LunchingViewController: UIViewController {
                 guard let self else { return }
                 UIView.transition(with: self.view.window!, duration: 1, options: .transitionCrossDissolve, animations: {
                     UIView.setAnimationsEnabled(false)
-                    self.view.window?.rootViewController = self.makeMainTabBarController()
+//                    self.view.window?.rootViewController = self.makeMainTabBarController()
+                    self.view.window?.rootViewController = self.makeFridgeSelectionVC()
                     UIView.setAnimationsEnabled(true)
                     printInfo("第三段動畫做完了")
                 }, completion: nil)

@@ -100,8 +100,13 @@ final class FridgeViewController: UIViewController {
         searchButton.setImage(UIImage(systemName: "magnifyingglass", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)), for: .normal)
         searchButton.tintColor = Theme.textPrimary
         searchButton.addTarget(self, action: #selector(searchTapped), for: .touchUpInside)
+        
+        let settingsButton = UIButton(type: .system)
+        settingsButton.setImage(UIImage(systemName: "gearshape", withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)), for: .normal)
+        settingsButton.tintColor = Theme.textPrimary
+        settingsButton.addTarget(self, action: #selector(searchTapped), for: .touchUpInside)
 
-        let row = UIStackView(arrangedSubviews: [iconContainer, titleLabel, UIView(), searchButton])
+        let row = UIStackView(arrangedSubviews: [iconContainer, titleLabel, UIView(), searchButton, settingsButton])
         row.spacing = 10
         row.alignment = .center
 
