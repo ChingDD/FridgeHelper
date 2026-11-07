@@ -11,12 +11,7 @@ class FridgeSelectionViewController: UIViewController {
     
     var viewModel: FridgeViewModel!
     
-    private lazy var collectionView: UICollectionView = {
-        let layout = UICollectionViewFlowLayout()
-        layout.scrollDirection = .vertical
-        let config = UICollectionView
-        return UICollectionView(frame: .zero, collectionViewLayout: layout)
-    }()
+    private var collectionView: UICollectionView = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -28,6 +23,13 @@ class FridgeSelectionViewController: UIViewController {
     private func setupCollectionView() {
         collectionView.delegate = self
         collectionView.backgroundColor = .yellow
+        let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.5), heightDimension: .fractionalHeight(0.5))
+        let item = NSCollectionLayoutItem(layoutSize: itemSize)
+        item.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6)
+        let groupSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1), heightDimension: .fractionalHeight(0.5))
+        let group = NSCollectionLayoutGroup.horizontal(layoutSize: groupSize, repeatingSubitem: item, count: 2)
+        let layout = UICollectionViewCompositionalLayout(section: NSCollectionLayoutSection(group: group))
+        collectionView.setCollectionViewLayout(layout, animated: false)
     }
     
     private func makeBrandRow() -> UIView {
