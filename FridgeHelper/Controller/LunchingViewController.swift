@@ -94,7 +94,7 @@ class LunchingViewController: UIViewController {
     // MARK: Test
     private func makeFridgeSelectionVC() -> UIViewController {
         let vc = FridgeSelectionViewController()
-        vc.viewModel = FridgeViewModel()
+        vc.viewModel = FridgeViewModel.mock()
         return vc
     }
 

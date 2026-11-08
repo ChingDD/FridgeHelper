@@ -6,18 +6,33 @@
 //
 
 import UIKit
+import Combine
 
 class FridgeSelectionViewController: UIViewController {
     
     var viewModel: FridgeViewModel!
     
     private var collectionView: UICollectionView = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
+    
+    private var dataSource: UICollectionViewDiffableDataSource<Int,Fridge>!
+
+    private var cancellables = Set<AnyCancellable>()
 
     override func viewDidLoad() {
         super.viewDidLoad()
         setupCollectionView()
+        setupDataSource()
         setupUI()
-        // Do any additional setup after loading the view.
+        setupBindings()
+    }
+
+    private func setupBindings() {
+        viewModel.$fridges
+            .receive(on: RunLoop.main)
+            .sink { [weak self] fridges in
+                self?.applySnapshot(fridges)
+            }
+            .store(in: &cancellables)
     }
     
     private func setupCollectionView() {
@@ -32,6 +47,26 @@ class FridgeSelectionViewController: UIViewController {
         collectionView.setCollectionViewLayout(layout, animated: false)
     }
     
+    private func setupDataSource() {
+        let regist = UICollectionView.CellRegistration<UICollectionViewListCell,Fridge> {cell,indexPath,fridge in
+            var content = cell.defaultContentConfiguration()
+            content.text = fridge.name
+            content.image = UIImage(systemName: "refrigerator")
+            cell.contentConfiguration = content
+        }
+        
+        dataSource = UICollectionViewDiffableDataSource(collectionView: collectionView, cellProvider: { cv, indexPath, fridge in
+            cv.dequeueConfiguredReusableCell(using: regist, for: indexPath, item: fridge)
+        })
+    }
+    
+    private func applySnapshot(_ fridges: [Fridge]) {
+        var snapshot = NSDiffableDataSourceSnapshot<Int,Fridge>()
+        snapshot.appendSections([0])
+        snapshot.appendItems(fridges)
+        dataSource.apply(snapshot)
+    }
+
     private func makeBrandRow() -> UIView {
         let iconContainer = UIView()
         iconContainer.backgroundColor = Theme.primary.withAlphaComponent(0.12)

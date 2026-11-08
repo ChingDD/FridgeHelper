@@ -11,7 +11,7 @@ import SwiftData
 import CloudKit
 
 @Model
-class Fridge {
+final class Fridge: Sendable {
     /// 字串化的 zoneID，格式 `"<ownerName>|<zoneName>"`；對應 `Item.fridgeID`
     var fridgeID: String = ""
     /// 顯示名稱。純本機，不同步給其他成員
