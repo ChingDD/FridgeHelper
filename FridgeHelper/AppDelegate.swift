@@ -25,13 +25,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
 
         // 必須同步完成：LunchingViewController 組裝時就要有冰箱可綁定
-        migrateFridgesIfNeeded()
+        ensureDefaultFridge()
 
         // Sync Cloud Data To Local
         // Plan Notification
         Task {
             do {
-                await migrateStoreLocationIfNeeded()
                 try await syncCloudToLocal()
                 await pushOwnedFridgeMetadata()
                 planAllItemsExpirationNotification()
@@ -209,26 +208,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
     }
 
-    /// 一次性本地遷移：舊資料的 storeCondition Int → storeLocation 字串（storeLocation 為空即未遷移，天然冪等）
+    /// 確保本機有 Default 冰箱。必須在畫面組裝與雲端同步之前完成
     @MainActor
-    private func migrateStoreLocationIfNeeded() async {
-        guard let stack = sharedStack else { return }
-        let repository = SwiftDataItemRepository(container: stack.container)
-        guard let items = try? await repository.fetch() else { return }
-        for item in items where item.storeLocation.isEmpty {
-            item.storeLocation = Item.location(fromLegacy: item.storeCondition)
-            try? await repository.update(item: item)
-        }
-    }
-
-    /// 一次性本地遷移：建立 Default 冰箱並把既有食材歸戶。必須在畫面組裝與雲端同步之前完成
-    @MainActor
-    private func migrateFridgesIfNeeded() {
+    private func ensureDefaultFridge() {
         guard let stack = sharedStack else { return }
         do {
-            try FridgeMigrator(container: stack.container).migrateIfNeeded()
+            try FridgeMigrator(container: stack.container).ensureDefaultFridge()
         } catch {
-            printInfo("Fridge 遷移失敗: \(error)")
+            printInfo("建立 Default 冰箱失敗: \(error)")
         }
     }
 
@@ -241,7 +228,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         guard let stack = sharedStack else { return }
         let fridges = (try? stack.container.mainContext.fetch(FetchDescriptor<Fridge>())) ?? []
         let repository = FridgeMetadataRepository(zoneMgr: ZoneManager())
-        for fridge in fridges where fridge.isOwnedByCurrentUser {
+        // 同步之後，本機仍然領先或雲端缺資料，需靠 upsert 更新雲端資料
+        for fridge in fridges {
             do {
                 try await repository.upsert(for: fridge)
             } catch {

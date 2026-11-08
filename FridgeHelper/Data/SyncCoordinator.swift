@@ -253,7 +253,6 @@ class SyncCoordinator {
                 existing.number = incoming.number
                 existing.unit = incoming.unit
                 existing.expiryDate = incoming.expiryDate
-                existing.storeCondition = incoming.storeCondition
                 existing.storeLocation = incoming.storeLocation
                 existing.memo = incoming.memo
                 existing.tag = incoming.tag
@@ -277,7 +276,7 @@ class SyncCoordinator {
 
     /// record 所在 zone 對應的 Fridge，不存在就建立。
     /// 這條路徑涵蓋新裝置與重新安裝：本機 Fridge 沒有同步，靠 record 的 zoneID 反推重建。
-    /// 新建的冰箱使用系統預設清單
+    /// 新建的冰箱先用系統預設清單，緊接著同一輪同步會收到 FridgeMetadata 並以 Owner 的清單覆蓋
     private func ensureFridge(for zoneID: CKRecordZone.ID) async throws -> Fridge {
         let fridgeID = Fridge.makeID(zoneName: zoneID.zoneName, ownerName: zoneID.ownerName)
         var descriptor = FetchDescriptor<Fridge>(predicate: #Predicate { $0.fridgeID == fridgeID })
@@ -315,14 +314,34 @@ class SyncCoordinator {
     ///
     /// 方案只套用在別人的冰箱：自己的冰箱以本機購買權益為準，
     /// 讓雲端上尚未更新的舊值蓋回來會把自己降級。
-    /// `updatedAt` 也不套用，本機那個欄位記的是本機資料（例如標籤清單）最後變動時間
+    /// record 的 `updatedAt` 也不套用，不要和本機的 `listsUpdatedAt`（標籤／位置清單最後變動時間）混在一起
     private func applyFridgeMetadata(_ record: CKRecord, to fridge: Fridge) {
         let snapshot = FridgeMetadataRecordMapper.snapshot(from: record)
         if !fridge.isOwnedByCurrentUser {
             fridge.plan = snapshot.plan
         }
         fridge.createdAt = snapshot.createdAt
+        applyLists(from: snapshot, to: fridge)
         try? modelContainer.mainContext.save()
+    }
+
+    /// 標籤與儲存位置：Owner 與成員都能編輯，最後寫入者勝（比 listsUpdatedAt）。
+    /// 本機可能有尚未上傳的新編輯，所以只在雲端比較新、
+    /// 或本機還是未自訂的預設值（新加入的冰箱、重裝後）時才採用雲端
+    private func applyLists(from snapshot: FridgeMetadataRecordMapper.Snapshot, to fridge: Fridge) {
+        guard let tags = snapshot.tags, let locations = snapshot.locations else { return }
+
+        let localIsPristine = fridge.tags == FridgeListDefaults.tags
+            && fridge.locations == FridgeListDefaults.locations
+        let cloudIsNewer = (snapshot.listsUpdatedAt ?? .distantPast) > fridge.listsUpdatedAt
+        guard localIsPristine || cloudIsNewer else { return }
+
+        guard fridge.tags != tags || fridge.locations != locations else { return }
+        fridge.tags = tags
+        fridge.locations = locations
+        if let listsUpdatedAt = snapshot.listsUpdatedAt {
+            fridge.listsUpdatedAt = listsUpdatedAt
+        }
     }
 
     // MARK: - Token Persistence

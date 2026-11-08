@@ -15,105 +15,97 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture Overview
 
 ### High-Level Structure
-FridgeHelper is an iOS app for managing food items in a refrigerator with expiration tracking and notifications.
+FridgeHelper is an iOS app for managing food items in one or more refrigerators, with expiration tracking, notifications, CloudKit sync and per-fridge sharing.
 
-**Core Architecture Pattern**: MVVM (Model-View-ViewModel) with repository-based local persistence and CloudKit sync
+**Core Architecture Pattern**: MVVM with repository-based local persistence (SwiftData) and CloudKit sync. **Multi-fridge**: one fridge = one CloudKit record zone.
 
 ### Key Components
 
 **Models**:
-- `Item` (Item.swift): Core data model representing food items with properties like name, quantity, expiry date, storage condition, memo, tag, and image
-- Storage conditions: 室溫 (room temperature), 冷藏 (refrigerated), 冷凍 (frozen)
+- `Item`: Food item (name, number, unit, expiry date, `storeLocation`, memo, tag, image, `fridgeID`, `zoneOwnerName`, `updatedByName`). `timeStamp` string is the identity (also the CKRecord name).
+- `Fridge` (`@Model`, local only, not synced): `fridgeID` = `"<ownerName>|<zoneName>"` (stringified zoneID), name, `plan`, `tags`, `locations`, `createdAt`, `listsUpdatedAt` (last local change of tags/locations). Own zones always use `CKCurrentUserDefaultName` as ownerName (`Fridge.normalizedOwnerName`). `Fridge.zoneID(from:)` restores a zoneID from a fridgeID. `SelectedFridgeStore` remembers the last selected fridge
+- `FridgePlan` (`free` / `familyLifetime`): central limits (owned fridges, items per fridge, invited members). Provided via `FridgePlanProviding` (currently `FreeFridgePlanProvider`; StoreKit planned). Plan follows the fridge Owner; members trust `FridgeMetadata.plan` synced from the zone
 
-**ViewModels** (business logic):
-- `MainViewModel`: Manages item CRUD operations, filtering, sorting, local list cache, expired item state, and table update events
-- `TagViewModel`: Handles tag creation and filtering
-- `EditViewModel`: Builds new or edited `Item` values and validates edit form state
-- `SortMethod`: Defines sorting options (by date, quantity, or no explicit sort)
+**ViewModels**:
+- `MainViewModel`: One instance **per selected fridge** (rebuilt on every selection). Item CRUD, filtering/sorting/search, in-memory `savedItems` cache, derived `displayedItems` / `expiredItems` / `expiredCount` / `savedItemCount`, capacity gate `addItemRejection` (synchronous on purpose)
+- `StringListViewModel`: User-defined lists (tags, locations) + selected filter value. Persists through `StringListStore`; `FridgeStringListStore` writes `Fridge.tags/locations` and calls `onChange` to push `FridgeMetadata` to the cloud
+- `FridgeViewModel`: Fridge list for the selection screen (reloads on `.cloudKitDataDidChange`)
+- `ParticipantsViewModel`: Share participants for the selected fridge
+- `EditViewModel`: Builds new/edited `Item` values and validates form state
+- `SortMethod` (in MainViewModel.swift): sort options
 
 **Views/Controllers**:
-- `LunchingViewController`: Launch screen and **composition root**. Builds the shared `SwiftDataItemRepository` → `CloudRepository` → `CompositeRepository` chain, creates the single `TagViewModel` / `MainViewModel` instances, and injects them (plus a `ShareManager` on the owner device) into `MainTableViewController` before presenting it
-- `MainTableViewController`: Primary interface showing items in table format with filtering/search. Receives `viewModel` / `tagViewModel` / optional `shareManager` via injection; shows a share button only when `shareManager != nil` (owner device)
-- `EditViewController`: Item creation/editing interface  
-- `ExpiredTableViewController`: Shows items nearing expiration
-- `TagTableViewController`: Tag management interface
+- `LunchingViewController`: Launch animation, then switches the window root to `FridgeSelectionViewController`. On selection it saves `SelectedFridgeStore.fridgeID` and calls `MainTabBarFactory.make`
+- `FridgeSelectionViewController`: Home screen listing local `Fridge`s
+- `MainTabBarFactory` (**composition root**): Per selected fridge builds `SwiftDataItemRepository` → `CloudRepository` → `CompositeRepository`, both `StringListViewModel`s, `MainViewModel` (with `syncFromCloud` closure → `AppDelegate.syncCloudToLocal()`), and a `ShareManager` bound to that fridge. Returns a `MainTabBarController`
+- `MainTabBarController`: Hides system tab bar, uses custom floating glass bar (3 tabs: Fridge / Scan / Participants)
+- `FridgeViewController`: Dashboard (expiry banner, location/tag filters, card list, FAB). Calls `MainViewModel` for add/update/delete
+- `ItemFormViewController`: Add/edit item form (replaces old EditViewController)
+- `ExpiryAlertsViewController`: Expiry alerts sheet (replaces old ExpiredTableViewController)
+- `ManageListViewController`: Generic add/delete screen for tags and locations
+- `ParticipantsViewController`: Member list; invite/remove via `UICloudSharingController`
+- `ScanViewController`: Skeleton only, scanning not implemented
+- UI is built programmatically (custom components in `View/Components`, styling in `Theme`), no longer storyboard-based except the launch screen
 
 **Data Layer**:
-- `SwiftDataStack`: Owns the SwiftData `ModelContainer`. Created once in `AppDelegate` (`sharedStack`) and used as the container source for every repository
-- `SwiftDataItemRepository`: Handles local SwiftData persistence for items and UserDefaults-backed tags
-- `CompositeRepository`: Owner-device write-through repository. Reads from SwiftData and writes item changes to local SwiftData first, then CloudKit in the background
-- `CloudRepository`: Handles CloudKit item CRUD for private and shared zones (routes to `privateDB` / `sharedDB` by `Item.zoneOwnerName`)
-- `SyncCoordinator`: Cloud → local one-way sync using change tokens. Applies CloudKit changes to local SwiftData after app launch, remote notifications, or accepted shares. Does not handle user CRUD
-- `DateController` singleton: Date formatting utilities
-- SwiftData is the local source of truth for persisted items
+- `SwiftDataStack`: Owns the `ModelContainer`. Created once in `AppDelegate` (`sharedStack`)
+- `SwiftDataItemRepository` (`ItemRepositoryProtocol`): Local SwiftData CRUD; `fetch(fridgeID:)` sorted by `timeStamp` descending; `count(fridgeID:)`
+- `CompositeRepository`: Write-through. Reads local only; add/update/delete write SwiftData first, then CloudKit in the background (best-effort, failures only logged). Update is **single-flight per item** with dirty-flag merging; delete waits for in-flight upload and clears dirty to avoid resurrecting records
+- `CloudRepository`: CloudKit item CRUD. `route(for:)` picks `privateDB` / `sharedDB` and zone from `Item.fridgeID`. `fetch(fridgeID:)` / `count` intentionally return empty (local only)
+- `SyncCoordinator`: Cloud → local one-way sync using change tokens (per database and per zone, keys from `SyncTokenKey`). Covers all private zones + shared DB. `ensureFridge` rebuilds a `Fridge` from a record's zoneID (new device / reinstall); applies `FridgeMetadata` (plan only for others' fridges; lists by last-writer-wins on `listsUpdatedAt`). Does not handle user CRUD
+- `FridgeMigrator`: Idempotent check run at launch; creates the Default fridge (zone `ShareZone`, system default lists) if it does not exist. No legacy-data migration (app is unreleased)
+- `DateController` singleton: Date formatting
 
-**CloudKit Sharing Layer**:
-- `ZoneManager` (`ZoneManaging`): Owns the shared `CKRecordZone.ID` ("ShareZone" in the private DB) and ensures the zone exists before sharing/sync
-- `ShareManager` (`SharingRepositoryProtocol`): Fetches or creates the zone-wide `CKShare` for `UICloudSharingController`, and stops sharing. Injected only into the owner device's `MainTableViewController`
-- `SubscriptionManager` (`Subscribable`): Registers CloudKit silent-push subscriptions — a `CKRecordZoneSubscription` on the private zone (owner cross-device sync) and a `CKDatabaseSubscription` on the shared DB (participant receives owner updates). Registered from `AppDelegate` on launch
+**CloudKit Layer** (`Data/CloudKit`):
+- `ZoneManager` (`ZoneManaging`): `ensureZoneExists(_:)` for own zones only. `defaultZoneName = "ShareZone"`; later fridges use `Fridge_<UUID>`
+- `ShareManager` (`SharingRepositoryProtocol`): One per fridge; fetches/creates the zone-wide `CKShare`, stops sharing. Only the fridge Owner can invite or stop sharing
+- `FridgeMetadataRepository` / `FridgeMetadataRecordMapper`: Writes the fridge's own record into its zone (plan, lists, `listsUpdatedAt`). Owner writes full metadata; members write list fields only and never create the record. Skips the write when the cloud copy is already up to date
+- `ItemRecordMapper`: Item ↔ CKRecord
+- `SubscriptionManager` (`Subscribable`): Silent-push subscriptions (private zone + shared DB), registered from `AppDelegate`
 
 ### Key Features
-- **Expiration Tracking**: Items within 3 days of expiry are flagged as "expired"
-- **Push Notifications**: Background notifications for expiring items
-- **Filtering System**: By storage condition, tags, search keywords
-- **Image Support**: Items can have associated photos stored as JPEG data
-- **Sorting Options**: By date (near to far, far to near) and quantity (high to low, low to high)
-- **iCloud Sync**: Automatically syncs items across devices signed into the same Apple ID via CloudKit private database
-- **Shared Fridge**: Invite others to co-manage the same fridge through a zone-wide `CKShare` (owner invites via `UICloudSharingController`, participant accepts and reads from the shared database)
-- **Real-time Updates**: Silent-push CloudKit subscriptions trigger cloud → local sync and surface which item was changed and by whom
+- **Expiration Tracking**: Items within 3 days of expiry are flagged (`expiryDate.timeIntervalSinceNow <= 259200`)
+- **Local Notifications**: 3-days-before and expiry-day notifications scheduled in `AppDelegate`
+- **Filtering**: By storage location, tag, search keyword; sorting by date/quantity
+- **Multi-fridge + Plans**: Per-fridge item capacity via `FridgePlan`
+- **iCloud Sync**: Across devices on the same Apple ID
+- **Shared Fridge**: Zone-wide `CKShare` per fridge; participants read/write via shared DB
+- **Real-time Updates**: Silent push → sync, with a notification showing who changed what
 
 ### Data Flow
-1. `SwiftDataItemRepository.fetch()` loads items from SwiftData sorted by `timeStamp` descending, so newly created items remain at the top after reloads
-2. `MainViewModel` keeps an in-memory `savedItems` cache and derives `displayedItems`, `expiredItems`, and `expiredCount` from it
-3. ViewControllers subscribe to `MainViewModel` publishers and `tableUpdateEvent` for UI updates
-4. Item add/update/delete flows update `MainViewModel` cache first, persist through the repository, then emit table update events
-5. `MainTableViewController.viewWillAppear` refreshes view state such as tag menu, expired count, and selection only. It does not trigger CloudKit sync or refetch items
-6. CloudKit sync is triggered by app launch, remote notifications, accepted shares, or an explicit `MainViewModel.syncFromCloudIfNeeded()` call. After sync, `.cloudKitDataDidChange` causes `MainViewModel` to reload local SwiftData
 
-### Current Item Flow
+**Launch (fresh install and normal launch are the same path)**:
+1. `AppDelegate.didFinishLaunching` creates `SwiftDataStack`, then synchronously runs `FridgeMigrator.ensureDefaultFridge()` (ensures the Default fridge exists) so a fridge always exists
+2. Background Task: `syncCloudToLocal()` → `pushOwnedFridgeMetadata()` → `planAllItemsExpirationNotification()`. In parallel: notification authorization, `registerForRemoteNotifications`, zone + subscription setup
+3. `syncCloudToLocal()` is serialized via `syncTask` (one sync at a time); fresh install has no token so it is a full fetch (restores data for the same Apple ID). It posts `.cloudKitDataDidChange` when done
+4. After the animation, `FridgeSelectionViewController` shows local fridges; selecting one runs `MainTabBarFactory.make`, creating a fresh `MainViewModel` that calls `loadItems()` (`fetch(fridgeID:)`)
 
-**Add / Edit / Delete**:
-1. `MainViewModel` updates the local `savedItems` cache first
-2. The repository writes the change to SwiftData
-3. `MainViewModel` emits a table update event
-4. `MainTableViewController` renders from `displayedItems`
+**Item Add / Update / Delete**:
+1. `FridgeViewController` → `MainViewModel` (`addItem` / `updateItem` / `updateQuantity` / `removeItem`)
+2. `MainViewModel` updates `savedItems` first so UI reflects immediately
+3. `CompositeRepository` writes SwiftData, then CloudKit in the background
+4. `MainViewModel` reschedules/removes notifications and calls `updateDerivedState()`
+5. `addItem` first checks `addItemRejection` (capacity); update/delete never check capacity
 
-**MainTableViewController.viewWillAppear**:
-1. Refreshes tag menu, expired count, and selection state only
-2. Does not call `syncCloudToLocal()`
-3. Does not refetch items when returning from add/edit screens
-
-**CloudKit Changes**:
-1. `AppDelegate`, `SceneDelegate`, or remote notification handling triggers `syncCloudToLocal()`
-2. After sync finishes, `.cloudKitDataDidChange` is posted
-3. `MainViewModel` receives the notification and calls `loadItems()`
-4. `SwiftDataItemRepository.fetch()` returns items sorted by `timeStamp` descending
-5. `MainViewModel.updateDerivedState()` updates `displayedItems`
+**String lists (tags / locations)**:
+1. `ManageListViewController` → `StringListViewModel.add` / `remove(at:)`
+2. `FridgeStringListStore.save` writes `Fridge.tags/locations`, updates `listsUpdatedAt`, saves context, calls `onChange`
+3. `onChange` → `FridgeMetadataRepository.upsert(for:)` uploads to the cloud
+4. Removing a value clears `selected` if it was the active filter; items already using it keep their string
+5. Other devices apply it in `SyncCoordinator.applyLists` (cloud newer, or local still default), then `.cloudKitDataDidChange` → `reloadFromStore()`
 
 **Silent Push → Sync**:
-1. On launch, `AppDelegate` registers `SubscriptionManager` subscriptions (private zone + shared DB)
-2. A change on any device delivers a silent push; `AppDelegate.didReceiveRemoteNotification` calls `syncCloudToLocal(shouldNotifyChanges: true)`
-3. `syncCloudToLocal()` builds a `SyncCoordinator` and applies cloud changes to SwiftData, then posts `.cloudKitDataDidChange`
+1. A change on any device delivers a silent push; `AppDelegate.didReceiveRemoteNotification` calls `syncCloudToLocal(shouldNotifyChanges: true)`
+2. `SyncCoordinator.fetchChanges()` applies cloud changes to SwiftData, a user notification shows who changed what
+3. `.cloudKitDataDidChange` makes `FridgeViewModel`, `MainViewModel` (`loadItems()`) and `StringListViewModel` reload from local data
 
-**Composition Root (`LunchingViewController`)**:
-1. Reads `AppDelegate.sharedStack` for the SwiftData container
-2. Builds `SwiftDataItemRepository` → `CloudRepository(zoneMgr:)` → `CompositeRepository`
-3. Creates the shared `TagViewModel` and `MainViewModel` (injecting the `syncFromCloud` closure that calls `appDelegate.syncCloudToLocal()`)
-4. Injects `viewModel` / `tagViewModel` / `shareManager` into `MainTableViewController` during the launch transition
-
-**Sharing Flow (owner device only)**:
-1. Tapping the share button calls `ShareManager.fetchOrCreateShare()`, which ensures the zone exists and returns a `CKShare` + `CKContainer`
-2. A `UICloudSharingController` presents the invite UI
-3. On the participant device, `SceneDelegate.windowScene(_:userDidAcceptCloudKitShareWith:)` accepts the share via `container.accept(_:)` then calls `syncCloudToLocal()`
+**Sharing Flow**:
+1. Owner opens the Participants tab; `ShareManager` (bound to the selected fridge) fetches or creates the zone-wide `CKShare`; `UICloudSharingController` handles invite/remove
+2. Participant accepts: `SceneDelegate.windowScene(_:userDidAcceptCloudKitShareWith:)` calls `container.accept(_:)` then `syncCloudToLocal()`; `ensureFridge` creates the shared fridge locally
 
 ### Background Processing
-- Uses `BackgroundTasks` framework for checking expired items
-- App delegate handles notification authorization and delivery
-- Bundle ID: `com.jefflin.FridgeHelper` with background task identifier: `com.jefflin.FridgeHelper.checkExpired`
+- Bundle ID: `com.jefflin.FridgeHelper`, background task identifier: `com.jefflin.FridgeHelper.checkExpired`
+- `AppDelegate` handles notification authorization/delivery and remote notifications
 
-### UI Patterns
-- Uses Storyboard-based UI with programmatic customization
-- Custom table view cells for item display
-- Swipe actions for item deletion
-- Menu-based filtering and sorting controls
-- Search controller integration in navigation bar
+### Other Docs in Repo
+`CloudKitSyncFlow.md`, `FridgeBusinessAndTechnicalDesign.md`, `pushUpdateToCloud.md`, `ENHANCEMENTS.md`, `release_tickets.md` hold design notes. Prefer the code when they disagree.

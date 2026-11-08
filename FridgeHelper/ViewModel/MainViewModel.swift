@@ -256,7 +256,6 @@ class MainViewModel {
         item.number = newItem.number
         item.unit = newItem.unit
         item.expiryDate = newItem.expiryDate
-        item.storeCondition = newItem.storeCondition
         item.storeLocation = newItem.storeLocation
         item.memo = newItem.memo
         item.tag = newItem.tag

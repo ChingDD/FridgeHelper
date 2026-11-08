@@ -51,9 +51,7 @@ class EditViewModel {
             self.isExpiryDateSet = true
             self.memo = item.memo ?? ""
             self.selectedTag = item.tag
-            self.storeLocation = item.storeLocation.isEmpty
-                ? Item.location(fromLegacy: item.storeCondition)
-                : item.storeLocation
+            self.storeLocation = item.storeLocation
             self.selectedImage = item.image.flatMap { UIImage(data: $0) }
         } else {
             self.name = ""

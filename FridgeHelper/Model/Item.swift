@@ -16,8 +16,6 @@ class Item {
     var number: Int = 0
     var unit: String = "pcs"
     var expiryDate: Date = Date()
-    /// Legacy 欄位：舊版慣例 0=冷凍、1=冷藏、2=室溫。保留供舊版 CloudKit 相容，新邏輯一律用 storeLocation
-    var storeCondition: Int = 0
     var storeLocation: String = ""
     var memo: String?
     var tag: String?
@@ -37,31 +35,12 @@ class Item {
         self.unit = unit
         self.expiryDate = expiryDate
         self.storeLocation = storeLocation
-        self.storeCondition = Item.legacyIndex(for: storeLocation)
         self.memo = memo
         self.tag = tag
         self.image = image
         self.timeStamp = timeStamp
         self.zoneOwnerName = zoneOwnerName
         self.updatedByName = updatedByName
-    }
-
-    // MARK: - Legacy 對照（0=冷凍、1=冷藏、2=室溫）
-
-    static func location(fromLegacy index: Int) -> String {
-        switch index {
-        case 0: return "冷凍"
-        case 2: return "室溫"
-        default: return "冷藏"
-        }
-    }
-
-    static func legacyIndex(for location: String) -> Int {
-        switch location {
-        case "冷凍": return 0
-        case "室溫": return 2
-        default: return 1
-        }
     }
 
     // MARK: - Zone 歸屬

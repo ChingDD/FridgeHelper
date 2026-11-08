@@ -28,23 +28,47 @@ enum FridgeMetadataRecordMapper {
         record["plan"] = fridge.plan.rawValue as CKRecordValue
         record["createdAt"] = fridge.createdAt as CKRecordValue
         record["updatedAt"] = Date() as CKRecordValue
+        populateLists(record, from: fridge)
+    }
+
+    /// 只寫清單欄位。成員也能編輯清單，但不能碰 plan（成員無法驗證 Owner 的購買權益）。
+    /// listsUpdatedAt 是清單本身最後變動的時間，所有成員以它比較新舊，最後寫入者勝
+    static func populateLists(_ record: CKRecord, from fridge: Fridge) {
+        record["tags"] = fridge.tags as CKRecordValue
+        record["locations"] = fridge.locations as CKRecordValue
+        record["listsUpdatedAt"] = fridge.listsUpdatedAt as CKRecordValue
+    }
+
+    /// 雲端上的清單是否已經不比本機舊；不舊就不必再上傳
+    static func listsAreUpToDate(_ record: CKRecord, for fridge: Fridge) -> Bool {
+        record["tags"] as? [String] == fridge.tags
+            && record["locations"] as? [String] == fridge.locations
     }
 
     /// 內容與本機一致就不需要再寫一次。
     /// 每次啟動都無條件 save 會讓其他裝置收到一次沒有意義的 silent push
     static func isUpToDate(_ record: CKRecord, for fridge: Fridge) -> Bool {
         record["plan"] as? String == fridge.plan.rawValue
+            && record["tags"] as? [String] == fridge.tags
+            && record["locations"] as? [String] == fridge.locations
     }
 
     struct Snapshot {
         let plan: FridgePlan
         let createdAt: Date
+        /// 舊版 record 沒有這三個欄位，為 nil 時不可拿來覆蓋本機清單
+        let tags: [String]?
+        let locations: [String]?
+        let listsUpdatedAt: Date?
     }
 
     static func snapshot(from record: CKRecord) -> Snapshot {
         Snapshot(
             plan: (record["plan"] as? String).flatMap(FridgePlan.init(rawValue:)) ?? .free,
-            createdAt: record["createdAt"] as? Date ?? Date()
+            createdAt: record["createdAt"] as? Date ?? Date(),
+            tags: record["tags"] as? [String],
+            locations: record["locations"] as? [String],
+            listsUpdatedAt: record["listsUpdatedAt"] as? Date
         )
     }
 }

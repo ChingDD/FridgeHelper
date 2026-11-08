@@ -22,7 +22,8 @@ final class Fridge: Sendable {
     var ownerName: String = ""
     var plan: FridgePlan = FridgePlan.free
     var createdAt: Date = Date()
-    var updatedAt: Date = Date()
+    /// 更新標籤清單或儲存位置清單的時間
+    var listsUpdatedAt: Date = Date()
     /// 這座冰箱的標籤清單
     var tags: [String] = []
     /// 這座冰箱的儲存位置清單
@@ -36,7 +37,7 @@ final class Fridge: Sendable {
         self.ownerName = owner
         self.plan = plan
         self.createdAt = Date()
-        self.updatedAt = Date()
+        self.listsUpdatedAt = Date()
         self.tags = tags
         self.locations = locations
     }
@@ -104,11 +105,8 @@ enum FridgeDefaultName {
     }
 }
 
-/// 標籤／儲存位置的系統預設值，以及 2A 之前清單存放的 UserDefaults key（遷移來源）
+/// 標籤／儲存位置的系統預設值
 enum FridgeListDefaults {
     static let tags = ["蔬菜", "水果", "肉類", "魚類"]
     static let locations = ["室溫", "冷藏", "冷凍"]
-
-    static let legacyTagsKey = "app.swiftdata.tags"
-    static let legacyLocationsKey = "app.swiftdata.storeLocations"
 }

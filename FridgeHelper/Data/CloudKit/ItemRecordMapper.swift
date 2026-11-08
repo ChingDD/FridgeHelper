@@ -16,8 +16,6 @@ enum ItemRecordMapper {
         record["quantity"] = item.number as CKRecordValue
         record["unit"] = item.unit as CKRecordValue
         record["expiry"] = item.expiryDate as CKRecordValue
-        // legacy Int 欄位照寫，讓尚未更新的裝置能繼續運作
-        record["store"] = Item.legacyIndex(for: item.storeLocation) as CKRecordValue
         record["storeLocation"] = item.storeLocation as CKRecordValue
         record["memo"] = item.memo as CKRecordValue?
         record["tag"] = item.tag as CKRecordValue?
@@ -35,9 +33,7 @@ enum ItemRecordMapper {
     }
 
     static func item(from record: CKRecord) -> Item {
-        // 優先讀新欄位，舊版寫的記錄 fallback 到 legacy store Int
-        let storeLocation = (record["storeLocation"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-            ?? Item.location(fromLegacy: (record["store"] as? Int64).map { Int($0) } ?? 1)
+        let storeLocation = record["storeLocation"] as? String ?? ""
 
         var imageData: Data? = nil
         if let asset = record["image"] as? CKAsset, let url = asset.fileURL {

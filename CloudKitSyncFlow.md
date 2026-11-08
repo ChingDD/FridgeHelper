@@ -78,3 +78,38 @@ task② 先寫 6,task① 後寫**舊的 5** → 畫面數量從 6「倒退」回
 所以整個 class 及其方法(含 `syncCloudToLocal`)都是 **MainActor-isolated**;方法內 `Task { }` 也繼承此 context,在 main thread 執行。
 
 **這是排隊能成立的地基:** 因為 `previous = syncTask`(讀)和 `syncTask = task`(寫)都在單一執行緒、不被打斷,才不會有 data race 把鏈接斷。若哪天把方法改成 `nonisolated`,這個保證就會消失。
+
+## 啟動時 Fridge 資料的三步設計
+
+`AppDelegate.didFinishLaunching` 對 `Fridge` 依序做三件事：
+
+1. `ensureDefaultFridge()`：同步執行，只動本機
+2. `try await syncCloudToLocal()`：雲端 → 本機
+3. `await pushOwnedFridgeMetadata()`：本機 → 雲端
+
+第 2、3 步在同一個 `do` 區塊裡，同步拋錯時第 3 步會被跳過。
+
+| 步驟 | 對 Fridge 做了什麼 | 為什麼放在這個位置 |
+|---|---|---|
+| `ensureDefaultFridge()` | 本機沒有 `ShareZone` 的 Default 冰箱就建一座（預設清單、`.free`） | 必須同步完成：畫面組裝時要有冰箱可綁定，雲端同步是非同步的，不能指望它先完成 |
+| `syncCloudToLocal()` | 依 record 的 zoneID 用 `ensureFridge` 建出缺少的冰箱，再用 `FridgeMetadata` 套用內容：別人冰箱的 `plan`、`createdAt`、標籤與位置清單 | 還原新裝置、重裝後的冰箱與接受分享後的共享冰箱。本機 `Fridge` 不同步，靠雲端 zone 反推重建 |
+| `pushOwnedFridgeMetadata()` | 對每座冰箱 `upsert` `FridgeMetadata`，內容不同才寫入。Owner 寫完整欄位並建立缺少的 record，成員只補傳清單 | 讓空冰箱在雲端也有紀錄、補傳離線時沒傳上去的清單編輯、讓成員知道 Owner 的方案 |
+
+### 設計重點
+- **同一座冰箱只有一個 ID**：三者都靠 `Fridge.makeID`（`"<ownerName>|<zoneName>"`，自己一律是 `CKCurrentUserDefaultName`），所以不會重複建立。
+- **同步在前、上傳在後**：先把雲端較新的清單套到本機，再上傳本機領先的內容，避免重裝後本機的預設值蓋掉雲端資料。
+- **衝突規則**：清單用 `Fridge.listsUpdatedAt` 比較，最後寫入者勝；自己的 `plan` 不信雲端，成員的 `plan` 信 Owner。
+- **雲端是備份與分享管道，不是唯一真相**：本機 `Fridge` 不同步，雲端只存 `FridgeMetadata`，兩邊透過這三步收斂。
+
+### 同步後本機與雲端仍可能不同
+`syncCloudToLocal` 是單向、有條件的套用，所以 `pushOwnedFridgeMetadata` 的比對不是多餘的：
+
+- 本機有尚未上傳的清單編輯（離線或上傳失敗），`applyLists` 不會讓雲端蓋掉較新的本機
+- 雲端沒有這筆 `FridgeMetadata`（新使用者的 Default 冰箱、空冰箱）
+- 自己冰箱的 `plan` 本來就不從雲端套用
+- 雲端 record 缺 `tags` / `locations`（舊版）時 `applyLists` 直接跳過
+- 同步是增量的，沒有變動的 zone 不會重新套用
+
+### 已知缺口
+- 新使用者在同步完成前只看得到空的 Default 冰箱，同步完成後靠 `.cloudKitDataDidChange` 更新。
+- 重裝後自己冰箱的 `plan` 不會從雲端還原，且 `pushOwnedFridgeMetadata` 可能把雲端的家庭版覆寫成 `free`，見 `可優化清單.md` 的 StoreKit 待辦。

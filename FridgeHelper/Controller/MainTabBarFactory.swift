@@ -18,12 +18,22 @@ enum MainTabBarFactory {
         let cloudRepo = CloudRepository(zoneMgr: ZoneManager())
         let compositeRepo = CompositeRepository(local: localRepo, cloud: cloudRepo)
 
+        // 清單編輯後上傳（Owner 寫完整 metadata，成員只寫清單欄位）
+        let pushMetadata: () -> Void = {
+            Task { @MainActor in
+                do {
+                    try await FridgeMetadataRepository(zoneMgr: ZoneManager()).upsert(for: fridge)
+                } catch {
+                    printInfo("FridgeMetadata 上傳失敗: \(error)")
+                }
+            }
+        }
         let tagListViewModel = StringListViewModel(
-            store: FridgeStringListStore(fridge: fridge, keyPath: \.tags, context: context),
+            store: FridgeStringListStore(fridge: fridge, keyPath: \.tags, context: context, onChange: pushMetadata),
             defaults: FridgeListDefaults.tags
         )
         let locationListViewModel = StringListViewModel(
-            store: FridgeStringListStore(fridge: fridge, keyPath: \.locations, context: context),
+            store: FridgeStringListStore(fridge: fridge, keyPath: \.locations, context: context, onChange: pushMetadata),
             defaults: FridgeListDefaults.locations
         )
         let mainViewModel = MainViewModel(
