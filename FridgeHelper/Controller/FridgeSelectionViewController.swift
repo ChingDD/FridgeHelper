@@ -11,6 +11,8 @@ import Combine
 class FridgeSelectionViewController: UIViewController {
     
     var viewModel: FridgeViewModel!
+    /// 使用者點選冰箱時通知外層，由外層決定如何進入主畫面
+    var onSelect: ((Fridge) -> Void)?
     
     private var collectionView: UICollectionView = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
     
@@ -37,7 +39,7 @@ class FridgeSelectionViewController: UIViewController {
     
     private func setupCollectionView() {
         collectionView.delegate = self
-        collectionView.backgroundColor = .yellow
+        collectionView.backgroundColor = .clear
         let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(0.5), heightDimension: .fractionalHeight(1.0))
         let item = NSCollectionLayoutItem(layoutSize: itemSize)
         item.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6)
@@ -142,5 +144,9 @@ class FridgeSelectionViewController: UIViewController {
 }
 
 extension FridgeSelectionViewController: UICollectionViewDelegate {
-    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        collectionView.deselectItem(at: indexPath, animated: true)
+        guard let fridge = dataSource.itemIdentifier(for: indexPath) else { return }
+        onSelect?(fridge)
+    }
 }

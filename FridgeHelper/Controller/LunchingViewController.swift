@@ -4,7 +4,7 @@
 //
 //  Created by 林仲景 on 2023/7/18.
 //
-//  組合根：建立 Repository / ViewModel，啟動動畫後切換到 MainTabBarController
+//  啟動動畫後切換到冰箱選擇首頁；主畫面由 MainTabBarFactory 依選定冰箱組裝
 
 import UIKit
 import SwiftData
@@ -13,88 +13,28 @@ class LunchingViewController: UIViewController {
 
     var launchScreen: UIViewController?
 
-    // Shared ViewModel instances — created once here and injected down the stack
-    private var selectedFridge: Fridge!
-    private var sharedTagListViewModel: StringListViewModel!
-    private var sharedLocationListViewModel: StringListViewModel!
-    private var sharedMainViewModel: MainViewModel!
-
     override func viewDidLoad() {
         super.viewDidLoad()
-        configViewModel()
         setLaunchScreenImageAnimation()
     }
 
-    private func configViewModel() {
+    /// 冰箱選擇首頁：讀取本機 Fridge，點選後以該冰箱組裝主畫面
+    private func makeFridgeSelectionVC() -> UIViewController {
         guard let stack = (UIApplication.shared.delegate as? AppDelegate)?.sharedStack else {
             fatalError("SharedStack 尚未初始化")
         }
-        let context = stack.container.mainContext
-        let fridge = loadSelectedFridge(in: context)
-        selectedFridge = fridge
-        let localRepo = SwiftDataItemRepository(container: stack.container)
-        let cloudRepo = CloudRepository(zoneMgr: ZoneManager())
-        let compositeRepo = CompositeRepository(local: localRepo, cloud: cloudRepo)
-        sharedTagListViewModel = StringListViewModel(
-            store: FridgeStringListStore(fridge: fridge, keyPath: \.tags, context: context),
-            defaults: FridgeListDefaults.tags
-        )
-        sharedLocationListViewModel = StringListViewModel(
-            store: FridgeStringListStore(fridge: fridge, keyPath: \.locations, context: context),
-            defaults: FridgeListDefaults.locations
-        )
-        sharedMainViewModel = MainViewModel(
-            fridge: fridge,
-            tags: sharedTagListViewModel,
-            locations: sharedLocationListViewModel,
-            local: compositeRepo,
-            // 階段四完成 StoreKit 後，改注入依購買權益判斷的實作
-            planProvider: FreeFridgePlanProvider(),
-            syncFromCloud: {
-                guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
-                try await appDelegate.syncCloudToLocal()
-            }
-        )
-    }
-
-    /// 上次選取的冰箱；找不到就退回 Default 冰箱。階段三接上冰箱選擇首頁後改由該頁決定
-    private func loadSelectedFridge(in context: ModelContext) -> Fridge {
-        let fridges = (try? context.fetch(FetchDescriptor<Fridge>())) ?? []
-        let defaultID = Fridge.makeID(zoneName: ZoneManager.defaultZoneName, ownerName: nil)
-        let targetID = SelectedFridgeStore.fridgeID ?? defaultID
-
-        guard let fridge = fridges.first(where: { $0.fridgeID == targetID })
-                ?? fridges.first(where: { $0.fridgeID == defaultID }) else {
-            // FridgeMigrator 在 didFinishLaunching 就會建立 Default 冰箱，正常不會走到這裡
-            fatalError("找不到可用的冰箱，Fridge 遷移未完成")
-        }
-        SelectedFridgeStore.fridgeID = fridge.fridgeID
-        return fridge
-    }
-
-    private func makeMainTabBarController() -> MainTabBarController {
-        let fridgeVC = FridgeViewController()
-        fridgeVC.viewModel = sharedMainViewModel
-
-        // 共享是逐冰箱的，ShareManager 綁在目前選定的那座冰箱上
-        let participantsVC = ParticipantsViewController()
-        participantsVC.viewModel = ParticipantsViewModel(
-            shareManager: ShareManager(fridge: selectedFridge, zoneMgr: ZoneManager())
-        )
-
-        let tabBarController = MainTabBarController()
-        tabBarController.setViewControllers([
-            UINavigationController(rootViewController: fridgeVC),
-            UINavigationController(rootViewController: ScanViewController()),
-            UINavigationController(rootViewController: participantsVC),
-        ], animated: false)
-        return tabBarController
-    }
-    
-    // MARK: Test
-    private func makeFridgeSelectionVC() -> UIViewController {
         let vc = FridgeSelectionViewController()
-        vc.viewModel = FridgeViewModel.mock()
+        vc.viewModel = FridgeViewModel(context: stack.container.mainContext)
+        vc.onSelect = { [weak vc] fridge in
+            SelectedFridgeStore.fridgeID = fridge.fridgeID
+            guard let window = vc?.view.window else { return }
+            let tabBar = MainTabBarFactory.make(fridge: fridge, stack: stack)
+            UIView.transition(with: window, duration: 0.4, options: .transitionCrossDissolve, animations: {
+                UIView.setAnimationsEnabled(false)
+                window.rootViewController = tabBar
+                UIView.setAnimationsEnabled(true)
+            }, completion: nil)
+        }
         return vc
     }
 
@@ -123,7 +63,6 @@ class LunchingViewController: UIViewController {
                 guard let self else { return }
                 UIView.transition(with: self.view.window!, duration: 1, options: .transitionCrossDissolve, animations: {
                     UIView.setAnimationsEnabled(false)
-//                    self.view.window?.rootViewController = self.makeMainTabBarController()
                     self.view.window?.rootViewController = self.makeFridgeSelectionVC()
                     UIView.setAnimationsEnabled(true)
                     printInfo("第三段動畫做完了")
