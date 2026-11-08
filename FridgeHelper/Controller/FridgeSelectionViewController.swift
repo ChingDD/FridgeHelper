@@ -130,7 +130,51 @@ class FridgeSelectionViewController: UIViewController {
     }
     
     @objc private func settingsTapped() {
+        #if DEBUG
+        presentDebugMenu()
+        #endif
     }
+
+    #if DEBUG
+    private func presentDebugMenu() {
+        let sheet = UIAlertController(title: "Debug", message: nil, preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(title: "清空 iCloud 與本機資料", style: .destructive) { [weak self] _ in
+            self?.confirmCloudReset()
+        })
+        sheet.addAction(UIAlertAction(title: "取消", style: .cancel))
+        sheet.popoverPresentationController?.sourceView = view
+        present(sheet, animated: true)
+    }
+
+    private func confirmCloudReset() {
+        let alert = UIAlertController(
+            title: "確定要清空？",
+            message: "會刪除此 Apple ID 在雲端的所有冰箱 zone（含分享），並離開已加入的共享冰箱，同時清掉本機資料。Record Type 不受影響。",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "清空", style: .destructive) { [weak self] _ in
+            self?.runCloudReset()
+        })
+        alert.addAction(UIAlertAction(title: "取消", style: .cancel))
+        present(alert, animated: true)
+    }
+
+    private func runCloudReset() {
+        guard let stack = (UIApplication.shared.delegate as? AppDelegate)?.sharedStack else { return }
+        Task { @MainActor in
+            let message: String
+            do {
+                let count = try await DebugCloudReset.resetAll(modelContainer: stack.container)
+                message = "已刪除 \(count.private) 座自有 zone、離開 \(count.shared) 座共享 zone。\n請完全關閉 App 後重新開啟，會重建 Default 冰箱與 zone。"
+            } catch {
+                message = "清除失敗：\(error.localizedDescription)"
+            }
+            let done = UIAlertController(title: "Debug", message: message, preferredStyle: .alert)
+            done.addAction(UIAlertAction(title: "好", style: .default))
+            present(done, animated: true)
+        }
+    }
+    #endif
     /*
     // MARK: - Navigation
 
