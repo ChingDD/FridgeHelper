@@ -96,6 +96,13 @@
 
 - `FridgeMetadata` 在 Development 環境由第一次寫入自動建立，要上 Production 必須到 CloudKit Console 執行 Deploy Schema Changes。只用 `record(for:)` 與 zone changes，不需要建 index。
 
+### 多冰箱 UI - 階段三（進行中，已完成部分）
+
+- 已新增冰箱選擇首頁 `FridgeSelectionViewController`，讀取本機 `Fridge`，雲端同步後自動重讀。
+- 已新增 `MainTabBarFactory`（composition root），選定冰箱後依該冰箱組裝 Repository、ViewModel 與 TabBar；`LunchingViewController` 動畫後進入選擇頁。
+- 已將標籤與儲存位置清單同步進 `FridgeMetadata`（`tags`／`locations`／`listsUpdatedAt`），Owner 與成員皆可編輯；衝突以 `listsUpdatedAt` 最後寫入者勝，本機仍為預設值時採用雲端；編輯後立即上傳，啟動時對所有冰箱補傳。
+- 已新增 DEBUG 專用「清空 iCloud 與本機資料」（`DebugCloudReset`），Release 不會編進去。
+
 ### [Bug] shared zone change token key 碰撞
 
 - 已於 commit `9ae1be8` 修正，token key 改為包含 database scope、`ownerName` 與 `zoneName`。
@@ -105,7 +112,7 @@
 
 ### 食材數量上限控管（[定案版商業規格＋技術設計](FridgeBusinessAndTechnicalDesign.md)）
 
-- 階段三：完成多冰箱 UI 與共享；新增冰箱選擇首頁、建立／重新命名／刪除冰箱、逐冰箱成員管理及 sharedDB 寫入。
+- 階段三：完成多冰箱 UI 與共享；冰箱選擇首頁已完成，尚缺建立／重新命名／刪除冰箱、逐冰箱成員管理及 sharedDB 寫入的完整流程。
 - 階段四：完成 StoreKit 家庭版永久內購；可擁有三座冰箱、每座 500 項、每座最多邀請 4 位成員，並支援購買、Restore、退款及撤銷權益。
 - 階段五：完成多設備競態、新設備恢復、多 shared zones、共享撤銷、離線與 StoreKit Sandbox 測試。
 
@@ -115,14 +122,14 @@
 
 階段二留給階段三的接點：
 
-- `LunchingViewController.loadSelectedFridge()` 目前固定退回 Default 冰箱，接上冰箱選擇首頁後改由該頁決定，其餘組裝流程不必調整。
+- 已完成：冰箱選擇首頁接上後，由該頁決定選定冰箱並交給 `MainTabBarFactory`。
 - 新增冰箱時 zone 名稱用 `Fridge_<UUID>`，Default 冰箱沿用 `ShareZone` 不遷移。
 - 建立冰箱後需呼叫 `FridgeMetadataRepository.upsert(for:)`，否則空冰箱在其他裝置上不會出現。
 
 #### 階段二的已知限制
 
-- 成員頁在 participant 裝置上會顯示「尚未共享冰箱」。共享已是逐冰箱的，但選定冰箱在冰箱選擇首頁做出來之前一律是自己的 Default 冰箱。與 2A 之後的食材列表行為一致，階段三接上選擇首頁即恢復。
-- 標籤與儲存位置清單仍是本機各自的，同一座共享冰箱不同成員看到的清單不一致。要一致需將清單同步進 `FridgeMetadata`。
+- （已解決）成員頁在 participant 裝置顯示「尚未共享冰箱」：冰箱選擇首頁接上後恢復。
+- （已解決）標籤與儲存位置清單各自本機：已同步進 `FridgeMetadata`。
 - 遷移的精度限制：舊有 shared Item 只存了 `zoneOwnerName`、沒有 zoneName，遷移時只能假設 `zoneName = "ShareZone"`。舊版本來就只支援單一 Zone，因此安全。
 
 ### 共享 zone 被撤銷時本機資料未清除
