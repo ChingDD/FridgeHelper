@@ -255,7 +255,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     private func performSync(shouldNotifyChanges: Bool) async throws {
         guard let stack = sharedStack else { return }
         let syncMgr = SyncCoordinator(localRepository: SwiftDataItemRepository(container: stack.container),
-                                      modelContainer: stack.container)
+                                      modelContainer: stack.container,
+                                      fridgeRemover: FridgeLocalRemover(container: stack.container,
+                                                                        removeNotifications: { [weak self] in self?.removeNotifications(for: $0) }))
 
         let changes = try await syncMgr.fetchChanges()
         if shouldNotifyChanges {

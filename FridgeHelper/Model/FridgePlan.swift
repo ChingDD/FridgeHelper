@@ -69,3 +69,22 @@ enum ItemCapacityRejection {
         }
     }
 }
+
+/// 建立冰箱被擋下的原因；只計自己擁有的冰箱，共享進來的不占名額
+enum FridgeCreationRejection {
+    /// 還能靠升級家庭版增加冰箱數
+    case ownerCanUpgrade(limit: Int)
+    /// 已經是方案的最大冰箱數，只能先刪除冰箱
+    case planMaxReached(limit: Int)
+
+    var alertTitle: String { "已達冰箱上限" }
+
+    var alertMessage: String {
+        switch self {
+        case .ownerCanUpgrade(let limit):
+            return "目前方案最多可擁有 \(limit) 座冰箱，升級家庭版可擁有更多。"
+        case .planMaxReached(let limit):
+            return "最多可擁有 \(limit) 座冰箱，請先刪除不需要的冰箱。"
+        }
+    }
+}

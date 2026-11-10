@@ -45,6 +45,7 @@ class SyncCoordinator {
     private let localRepository: ItemRepositoryProtocol
     private let ckContainer: CKContainer
     private let modelContainer: ModelContainer
+    private let fridgeRemover: FridgeLocalRemover
 
     private var privateDatabase: CKDatabase { ckContainer.privateCloudDatabase }
     private var sharedDatabase: CKDatabase { ckContainer.sharedCloudDatabase }
@@ -52,10 +53,12 @@ class SyncCoordinator {
     init(
         localRepository: ItemRepositoryProtocol,
         modelContainer: ModelContainer,
+        fridgeRemover: FridgeLocalRemover,
         containerIdentifier: String = "iCloud.FridgeHelper"
     ) {
         self.localRepository = localRepository
         self.modelContainer = modelContainer
+        self.fridgeRemover = fridgeRemover
         self.ckContainer = CKContainer(identifier: containerIdentifier)
     }
 
@@ -123,10 +126,16 @@ class SyncCoordinator {
             }
         }
 
-        // Step 3：被刪除的 zone（對方撤銷共享、或自己在別台裝置刪掉冰箱）→ 清除 token
+        // Step 3：被刪除的 zone（對方撤銷共享、或自己在別台裝置刪掉冰箱）→ 清除 token 與本機冰箱資料
         for zoneID in deletedZoneIDs {
             UserDefaults.standard.removeObject(forKey: SyncTokenKey.zone(zoneID, scope: scope))
+            // 同一輪又出現在變動清單，代表 zone 被刪除後重建，本機資料是剛套用的，不能清
+            guard !changedZoneIDs.contains(zoneID) else { continue }
+            printInfo("Zone 已被刪除，清除本機冰箱: scope=\(scope.rawValue) owner=\(zoneID.ownerName) zone=\(zoneID.zoneName)")
+            try fridgeRemover.remove(fridgeID: Fridge.makeID(zoneName: zoneID.zoneName, ownerName: zoneID.ownerName))
         }
+        // 啟動時才補建 Default 冰箱，同步清掉它之後必須立刻補回，否則畫面上會沒有冰箱
+        try FridgeMigrator(container: modelContainer).ensureDefaultFridge()
 
         if let token = newDBToken {
             saveToken(token, forKey: databaseTokenKey)

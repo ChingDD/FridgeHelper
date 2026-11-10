@@ -24,7 +24,16 @@ class LunchingViewController: UIViewController {
             fatalError("SharedStack 尚未初始化")
         }
         let vc = FridgeSelectionViewController()
-        vc.viewModel = FridgeViewModel(context: stack.container.mainContext)
+        let appDelegate = UIApplication.shared.delegate as? AppDelegate
+        vc.viewModel = FridgeViewModel(
+            context: stack.container.mainContext,
+            // 階段四完成 StoreKit 後，改注入依購買權益判斷的實作
+            planProvider: FreeFridgePlanProvider(),
+            metadataRepository: FridgeMetadataRepository(zoneMgr: ZoneManager()),
+            zoneRepository: FridgeZoneRepository(),
+            localRemover: FridgeLocalRemover(container: stack.container,
+                                             removeNotifications: { appDelegate?.removeNotifications(for: $0) })
+        )
         vc.onSelect = { [weak vc] fridge in
             SelectedFridgeStore.fridgeID = fridge.fridgeID
             guard let window = vc?.view.window else { return }
